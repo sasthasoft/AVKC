@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVKC Rent Payment Report</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#fff0f6;
+}
+
+.container{
+max-width:1200px;
+margin:auto;
+padding:10px;
+}
+
+h2{
+text-align:center;
+color:#c2185b;
+}
+  
+  h3{
+text-align:center;
+color:#c2185b;
+}
+
+#msgBox{
+text-align:center;
+font-weight:bold;
+margin:10px 0;
+display:none;
+}
+
+/* SEARCH BOX */
+.search-box{
+text-align:center;
+margin-bottom:10px;
+}
+
+.search-box input{
+padding:6px;
+width:200px;
+border:1px solid #ccc;
+border-radius:5px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:12px;
+}
+
+th,td{
+border:1px solid #ccc;
+padding:6px;
+text-align:center;
+vertical-align:middle;
+}
+
+th{
+background:#c2185b;
+color:white;
+}
+
+button{
+padding:5px 8px;
+border:none;
+border-radius:5px;
+background:#c2185b;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+opacity:0.8;
+}
+
+.table-wrap{
+overflow-x:auto;
+}
+
+.preview-img{
+width:50px;
+height:50px;
+object-fit:cover;
+border-radius:6px;
+cursor:pointer;
+}
+
+.modal{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.7);
+justify-content:center;
+align-items:center;
+}
+
+.modal img{
+max-width:90%;
+max-height:90%;
+border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2>Edit & Delete Bill</h2>
+
+<h5></h5>
+
+  
+
+<!-- BILL NO SEARCH -->
+<div class="search-box">
+Search Bill No:
+<input type="text" id="billSearch" placeholder="Enter Bill No" onkeyup="searchBill()">
+</div>
+<div id="msgBox"></div>
+
+<div class="table-wrap">
+<table id="dataTable">
+<thead></thead>
+<tbody></tbody>
+</table>
+</div>
+
+</div>
+
+<!-- IMAGE MODAL -->
+<div class="modal" id="imageModal" onclick="closeModal()">
+<img id="modalImg">
+</div>
+
+<script>
+
+const API_URL="https://script.google.com/macros/s/AKfycbyfoPhGsdSzTsp0ZlrIWpr1v4uV3m4UyVU6jpdzCNfSqWMnqbGYBQa46naqAo-C2Olh/exec";
+
+let allData=[];
+
+function showMessage(msg,color="#c2185b"){
+let box=document.getElementById("msgBox");
+box.innerText=msg;
+box.style.color=color;
+box.style.display="block";
+setTimeout(()=>{box.style.display="none";},3000);
+}
+
+async function loadData(){
+showMessage("Loading Data... ⏳");
+
+const res=await fetch(API_URL,{
+method:"POST",
+body:JSON.stringify({action:"getPayments"})
+});
+
+const data=await res.json();
+allData=data.data||[];
+
+renderTable(allData);
+
+showMessage("Data Loaded ✅","green");
+}
+
+function renderTable(data){
+
+const table=document.getElementById("dataTable");
+const thead=table.querySelector("thead");
+const tbody=table.querySelector("tbody");
+
+thead.innerHTML="";
+tbody.innerHTML="";
+
+if(!data.length){
+tbody.innerHTML="<tr><td>No Data</td></tr>";
+return;
+}
+
+let keys=Object.keys(data[0]).filter(k=>k!=="row");
+
+thead.innerHTML="<tr>"
++ keys.map(k=>`<th>${k}</th>`).join("")
++ "<th>Update</th><th>Delete</th></tr>";
+
+data.forEach((row,index)=>{
+
+let tr="<tr>";
+
+keys.forEach(k=>{
+
+if(k==="Image_Based64" && row[k]){
+tr+=`<td>
+<img src="${row[k]}" class="preview-img" onclick="openModal('${row[k]}')">
+</td>`;
+}
+else{
+tr+=`<td contenteditable="true">${row[k]||""}</td>`;
+}
+
+});
+
+tr+=`<td><button onclick="updateRow(${index})">Update</button></td>`;
+tr+=`<td><button onclick="deleteRow(${row.row})">Delete</button></td>`;
+tr+="</tr>";
+
+tbody.innerHTML+=tr;
+
+});
+
+}
+
+/* BILL SEARCH FUNCTION */
+function searchBill(){
+
+let searchValue=document.getElementById("billSearch").value.toLowerCase();
+
+let filtered=allData.filter(row=>{
+return row.Bill_No && row.Bill_No.toString().toLowerCase().includes(searchValue);
+});
+
+renderTable(filtered);
+}
+
+function openModal(src){
+document.getElementById("modalImg").src=src;
+document.getElementById("imageModal").style.display="flex";
+}
+
+function closeModal(){
+document.getElementById("imageModal").style.display="none";
+}
+
+async function updateRow(index){
+
+showMessage("Updating... ⏳");
+
+const table=document.getElementById("dataTable");
+const headers=[...table.querySelectorAll("thead th")]
+.map(th=>th.innerText)
+.filter(h=>h!=="Update" && h!=="Delete");
+
+const rowCells=table.querySelectorAll("tbody tr")[index].querySelectorAll("td");
+
+let updatedData={};
+
+headers.forEach((h,i)=>{
+
+if(h==="Image_Based64"){
+updatedData[h]=allData[index][h];
+}
+else{
+updatedData[h]=rowCells[i].innerText.trim();
+}
+
+});
+
+updatedData.action="updatePayment";
+updatedData.row=allData[index].row;
+
+await fetch(API_URL,{
+method:"POST",
+body:JSON.stringify(updatedData)
+});
+
+showMessage("Update Finished ✅","green");
+loadData();
+}
+
+async function deleteRow(sheetRow){
+
+if(!confirm("Are you sure to delete?")) return;
+
+showMessage("Deleting... ⏳");
+
+await fetch(API_URL,{
+method:"POST",
+body:JSON.stringify({
+action:"deletePayment",
+row:sheetRow
+})
+});
+
+showMessage("Deleted Successfully ✅","green");
+loadData();
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>

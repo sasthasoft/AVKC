@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Tax Invoice</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  max-width: 210mm;
+  margin: auto;
+  font-size: 13px;
+}
+
+h2 { text-align: center; }
+
+/* TABLE */
+table { width:100%; border-collapse: collapse; }
+td, th { border:1px solid #000; padding:6px; }
+
+/* INPUT */
+input, textarea, select {
+  width:100%;
+  border:none;
+  outline:none;
+  font-size:13px;
+}
+
+/* ALIGN */
+.right { text-align:right; }
+.center { text-align:center; }
+.bold { font-weight:bold; }
+
+/* BUTTON */
+button {
+  background:#c2185b;
+  color:#fff;
+  padding:8px 15px;
+  border:none;
+  margin:5px;
+  cursor:pointer;
+}
+button:disabled {background:#999;}
+
+/* LOADING */
+#loading {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  color:#fff;
+  font-size:22px;
+  text-align:center;
+  padding-top:200px;
+  z-index:999;
+}
+
+/* PRINT */
+@media print {
+  #controls, #dataSection {display:none;}
+}
+</style>
+
+<script>
+
+const API_URL="https://script.google.com/macros/s/AKfycbxzDRlYZN-pVUEdwqRMrf59dz_loF7KVVQFkoLzxE_IrwYrSlk8CWUEqlv2PLQA6HVk/exec";
+
+// LOADING
+function showLoading(msg){
+  loading.innerText=msg;
+  loading.style.display="block";
+}
+function hideLoading(){
+  loading.style.display="none";
+}
+
+// AUTO BILL
+function getBillNo(){
+ fetch(API_URL+"?action=nextBill")
+ .then(res=>res.text())
+ .then(n=>{billno.value=n;});
+}
+
+// DATE
+function today(){
+ date.value=new Date().toISOString().split('T')[0];
+}
+
+// NUMBER TO WORDS
+function numberToWords(num) {
+ let a=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+ let b=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+ if(num==0) return "Zero Only";
+ function convert(n){
+  if(n<20) return a[n];
+  if(n<100) return b[Math.floor(n/10)]+" "+a[n%10];
+  if(n<1000) return a[Math.floor(n/100)]+" Hundred "+convert(n%100);
+  if(n<100000) return convert(Math.floor(n/1000))+" Thousand "+convert(n%1000);
+  return "";
+ }
+ return convert(num)+" Only";
+}
+
+// CALC
+function calc(){
+ let hall=Number(hallEl.value)||0;
+ let other=Number(otherEl.value)||0;
+
+ let taxable=hall+other;
+ let cg=taxable*0.09;
+ let sg=taxable*0.09;
+ let total=taxable+cg+sg;
+
+ cgst.innerText=cg.toFixed(2);
+ sgst.innerText=sg.toFixed(2);
+ totalEl.innerText=total.toFixed(2);
+
+ sum_taxable.innerText=taxable.toFixed(2);
+ sum_cgst.innerText=cg.toFixed(2);
+ sum_sgst.innerText=sg.toFixed(2);
+ sum_totaltax.innerText=(cg+sg).toFixed(2);
+
+ words.innerText = numberToWords(Math.round(total));
+}
+
+// SAVE + PRINT
+function saveData(){
+
+ calc();
+ showLoading("Saving & Printing...");
+
+ let data={
+  action:"save",
+  date:date.value,
+  mode:mode.value,
+  name:name.value,
+  address:address.value,
+  hall:hallEl.value,
+  other:otherEl.value,
+  taxable:sum_taxable.innerText,
+  cgst:sum_cgst.innerText,
+  sgst:sum_sgst.innerText,
+  total:totalEl.innerText
+ };
+
+ fetch(API_URL,{
+  method:"POST",
+  body:JSON.stringify(data)
+ })
+ .then(()=> {
+   hideLoading();
+   window.print();
+   loadData();
+   getBillNo();
+ });
+}
+
+// LOAD
+function loadData(){
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+  let html="";
+  for(let i=1;i<data.length;i++){
+   html+=`<tr>
+    <td>${data[i][0]}</td>
+    <td>${data[i][1]}</td>
+    <td>${data[i][3]}</td>
+    <td>${data[i][10]}</td>
+    <td>
+      <button onclick="editRow(${i})">Edit</button>
+      <button onclick="deleteRow(${i})">Delete</button>
+    </td>
+   </tr>`;
+  }
+  dataTable.innerHTML=html;
+ });
+}
+
+// DELETE
+function deleteRow(id){
+ if(!confirm("Delete?")) return;
+
+ showLoading("Deleting...");
+ fetch(API_URL+"?action=delete&id="+(id+1))
+ .then(()=>{hideLoading(); loadData();});
+}
+
+// EDIT
+function editRow(id){
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+  let r=data[id];
+
+  editId.value=id+1;
+  billno.value=r[0];
+  date.value=r[1];
+  mode.value=r[2];
+  name.value=r[3];
+  address.value=r[4];
+  hallEl.value=r[5];
+  otherEl.value=r[6];
+
+  calc();
+ });
+}
+
+// UPDATE
+function updateData(){
+ calc();
+ showLoading("Updating...");
+
+ let data={
+  action:"update",
+  id:editId.value,
+  billno:billno.value,
+  date:date.value,
+  mode:mode.value,
+  name:name.value,
+  address:address.value,
+  hall:hallEl.value,
+  other:otherEl.value,
+  taxable:sum_taxable.innerText,
+  cgst:sum_cgst.innerText,
+  sgst:sum_sgst.innerText,
+  total:totalEl.innerText
+ };
+
+ fetch(API_URL,{
+  method:"POST",
+  body:JSON.stringify(data)
+ })
+ .then(()=>{
+  hideLoading();
+  alert("Updated");
+  loadData();
+ });
+}
+
+// INIT
+window.onload=function(){
+ today();
+ getBillNo();
+ loadData();
+}
+
+</script>
+
+</head>
+
+<body>
+
+<div id="loading">Please wait...</div>
+
+<h2>AVKC CHATHIRAM  / TAX INVOICE</h2>
+
+<table>
+<tr>
+<td width="50%">
+<b>AVKC CHATHIRAM KALYANA MANDAPAM</b><br>
+  <b> KOVILPATTI - 628 501</b><br>
+GSTIN: 33AABAK8236A2Z3
+
+</td>
+
+<td width="50%">
+<table>
+<tr><td>Invoice No</td><td><input id="billno" readonly></td></tr>
+<tr><td>Dated</td><td><input type="date" id="date"></td></tr>
+<tr><td>Mode</td>
+<td>
+<select id="mode">
+<option>Cash</option>
+<option>Bank Transfer</option>
+<option>Cheque</option>
+</select>
+</td></tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td>
+<b>Tenant Details</b><br>
+
+<textarea id="address"></textarea>
+<input type="hidden" id="editId">
+</td>
+
+<td>
+State: Tamil Nadu, Code: 33
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr class="center bold">
+<th>Sl</th>
+<th>Particulars</th>
+<th>HSN/SAC</th>
+<th>Amount</th>
+</tr>
+
+<tr>
+<td class="center">1</td>
+<td>Hall Rent</td>
+<td class="center">998399</td>
+<td><input id="hallEl" onkeyup="calc()"></td>
+</tr>
+
+<tr>
+<td class="center">2</td>
+<td>Other Expenses</td>
+<td class="center">998399</td>
+<td><input id="otherEl" onkeyup="calc()"></td>
+</tr>
+
+<tr>
+<td></td>
+<td class="bold">CGST @ 9%</td>
+<td></td>
+<td class="right" id="cgst">0</td>
+</tr>
+
+<tr>
+<td></td>
+<td class="bold">SGST @ 9%</td>
+<td></td>
+<td class="right" id="sgst">0</td>
+</tr>
+
+<tr class="bold">
+<td colspan="3" class="right">Total</td>
+<td class="right" id="totalEl">0</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="60%">
+Amount in Words:<br>
+<span id="words"></span>
+</td>
+
+<td width="40%" class="center">
+for Kalyana Mandapam<br><br><br>
+Authorised Signatory
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr class="center bold">
+<th>HSN/SAC</th>
+<th>Taxable</th>
+<th>CGST</th>
+<th>SGST</th>
+<th>Total Tax</th>
+</tr>
+
+<tr class="center">
+<td>998399</td>
+<td id="sum_taxable">0</td>
+<td id="sum_cgst">0</td>
+<td id="sum_sgst">0</td>
+<td id="sum_totaltax">0</td>
+</tr>
+</table>
+
+<br>
+
+<p class="center">This is a Computer Generated Invoice</p>
+
+<!-- BUTTONS -->
+<div id="controls">
+<button onclick="saveData()">Save & Print</button>
+<button onclick="updateData()">Update</button>
+</div>
+
+<!-- DATA TABLE -->
+<div id="dataSection">
+<h3>Saved Records</h3>
+<table>
+<tr>
+<th>Bill</th><th>Date</th><th>Name</th><th>Total</th><th>Action</th>
+</tr>
+<tbody id="dataTable"></tbody>
+</table>
+</div>
+
+</body>
+</html>

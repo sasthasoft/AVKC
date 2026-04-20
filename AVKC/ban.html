@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank Details</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body{
+    background: linear-gradient(135deg, #ffffff, #f8d7da);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:500px;
+    background:#ffffff;
+    padding:30px;
+    border-radius:15px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.15);
+    text-align:center;
+}
+
+/* HEADER IMAGE */
+.header-img{
+    width:220px;
+    height:auto;
+    margin:0 auto 20px auto;
+    display:block;
+}
+
+/* TITLE */
+h2{
+    margin-bottom:25px;
+    color:#c2185b;
+    font-weight:bold;
+}
+
+/* BANK DETAILS */
+.bank-detail{
+    margin-bottom:15px;
+    padding:12px;
+    border-radius:8px;
+    background:#ffe4ec;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+}
+
+.bank-detail span{
+    font-weight:bold;
+    color:#880e4f;
+}
+
+.value{
+    color:#333;
+    word-break:break-all;
+}
+
+/* BUTTON */
+.copy-btn{
+    margin-top:20px;
+    width:100%;
+    padding:12px;
+    background:#c2185b;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:16px;
+    transition:0.3s;
+}
+
+.copy-btn:hover{
+    background:#880e4f;
+}
+
+/* MOBILE */
+@media(max-width:480px){
+    .container{
+        padding:20px;
+    }
+
+    .bank-detail{
+        flex-direction:column;
+        text-align:left;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- HEADER IMAGE (App Path Image) -->
+    <img src="intro2.png" class="header-img" alt="Logo">
+
+    <h2>BANK ACCOUNT DETAILS</h2>
+
+    <div class="bank-detail">
+        <span>Account Name :</span>
+        <div class="value"> 
+ KOVILPATTI AYIRA VAISYA KASUKKARA CHETTI
+PILLAIGAL SANGAM
+</div>
+    </div>
+
+    <div class="bank-detail">
+        <span>Bank Name :</span>
+        <div class="value">Karur Vysya Bank</div>
+    </div>
+
+    <div class="bank-detail">
+        <span>Account Number :</span>
+        <div class="value" id="accno">1149010000000051</div>
+    </div>
+
+    <div class="bank-detail">
+        <span>IFSC Code :</span>
+        <div class="value">KVBL0001149</div>
+    </div>
+
+    <div class="bank-detail">
+        <span>Branch :</span>
+        <div class="value">Kovilpatti</div>
+    </div>
+
+    <button class="copy-btn" onclick="copyAccount()">Copy Account Number</button>
+
+</div>
+
+<script>
+function copyAccount(){
+    var text = document.getElementById("accno").innerText;
+    navigator.clipboard.writeText(text);
+    alert("Account Number Copied Successfully!");
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Shop Rental Management</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+--pink:#c2185b;
+--pink-dark:#a3154c;
+--bg:#f4f6fb;
+--white:#ffffff;
+--shadow:0 6px 18px rgba(0,0,0,0.12);
+}
+
+*{
+box-sizing:border-box;
+transition:all .25s ease;
+}
+
+body{
+margin:0;
+font-family:'Poppins',sans-serif;
+background:var(--bg);
+}
+
+/* HEADER */
+
+header{
+background:linear-gradient(135deg,var(--pink),var(--pink-dark));
+color:white;
+padding:14px 16px;
+display:flex;
+align-items:center;
+gap:12px;
+box-shadow:var(--shadow);
+}
+
+header h2{
+margin:0;
+font-size:18px;
+font-weight:600;
+}
+  h5{
+text-align:center;
+font-size:18px;
+font-weight:600;
+color:#c2185b;   /* dark pink */
+margin:10px 0;
+}
+
+/* MENU BUTTON */
+
+.menu-btn{
+font-size:22px;
+cursor:pointer;
+}
+
+/* SIDEBAR */
+
+.sidebar{
+position:fixed;
+top:0;
+left:0;
+width:240px;
+height:100%;
+background:linear-gradient(135deg,var(--pink),var(--pink-dark));
+padding-top:65px;
+box-shadow:2px 0 12px rgba(0,0,0,0.2);
+}
+
+.sidebar a{
+display:flex;
+align-items:center;
+gap:10px;
+padding:12px 16px;
+color:white;
+text-decoration:none;
+font-size:14px;
+border-left:3px solid transparent;
+}
+
+.sidebar a:hover{
+background:rgba(255,255,255,0.15);
+border-left:3px solid white;
+}
+
+/* MAIN CONTENT */
+
+.main{
+margin-left:240px;
+padding:20px;
+}
+
+/* CENTER IMAGE */
+
+.center-image{
+display:flex;
+justify-content:center;
+align-items:center;
+margin-top:20px;
+margin-bottom:25px;
+}
+
+.center-image img{
+width:240px;
+max-width:90%;
+border-radius:12px;
+box-shadow:var(--shadow);
+}
+
+/* DASHBOARD */
+
+#dashboard{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+gap:18px;
+}
+
+/* CARDS */
+
+.card{
+background:white;
+border-radius:14px;
+padding:20px 10px;
+text-align:center;
+cursor:pointer;
+box-shadow:var(--shadow);
+}
+
+.card i{
+font-size:30px;
+color:var(--pink);
+margin-bottom:8px;
+}
+
+.card span{
+display:block;
+font-weight:600;
+font-size:14px;
+}
+
+/* CARD HOVER */
+
+.card:hover{
+transform:translateY(-6px) scale(1.03);
+background:linear-gradient(135deg,var(--pink),var(--pink-dark));
+}
+
+.card:hover i,
+.card:hover span{
+color:white;
+}
+
+/* FOOTER */
+
+footer{
+background:linear-gradient(135deg,var(--pink),var(--pink-dark));
+color:white;
+padding:14px;
+margin-top:30px;
+}
+
+.footer-box{
+max-width:1100px;
+margin:auto;
+display:flex;
+justify-content:space-between;
+flex-wrap:wrap;
+gap:10px;
+}
+
+/* MOBILE */
+
+@media(max-width:768px){
+
+.sidebar{
+left:-240px;
+}
+
+.sidebar.active{
+left:0;
+}
+
+.main{
+margin-left:0;
+padding:15px;
+}
+
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+
+<i class="fa fa-bars menu-btn" onclick="toggleMenu()"></i>
+
+<h2>கோவில்பட்டி AVKC சங்கம்</h2>
+
+</header>
+
+<!-- SIDEBAR -->
+
+<div class="sidebar" id="sidebar">
+
+<a href="newentry_sangam.html"><i class="fa fa-home"></i> AVKC Members</a>
+
+<a href="newentry.html"><i class="fa fa-user"></i> New Tenant</a>
+
+<a href="expanses.html"><i class="fa fa-wallet"></i> Expenses</a>
+
+<a href="land.html"><i class="fa fa-store"></i> Property</a>
+
+<a href="agreement.html"><i class="fa fa-file-contract"></i> Agreement</a>
+
+<a href="rental.html"><i class="fa fa-file-invoice"></i> Billing</a>
+
+<a href="printdup.html"><i class="fa fa-print"></i> Dup Print</a>
+
+<a href="buyback.html"><i class="fa fa-hand-holding-usd"></i> Pending Collection</a>
+
+<a href="deletebill.html"><i class="fa fa-edit"></i> Edit Bill</a>
+
+<a href="ban.html"><i class="fa fa-university"></i> Bank</a>
+
+<a href="kalyana_madapam.html"><i class="fa fa-money-bill-wave"></i> Kalyana Mandapam</a>
+<a href="kalyana_mandapam_2.html"><i class="fa fa-money-bill-wave"></i> Chathiram Mandapam</a>
+
+<a href="rptmaster.html"><i class="fa fa-chart-line"></i> Reports</a>
+
+<a href="lg.html"><i class="fa fa-sign-out-alt"></i> Logout</a>
+
+</div>
+
+<!-- MAIN CONTENT -->
+
+<div class="main">
+
+<div class="center-image">
+<img src="intro2.png">
+</div>
+  <h5>Login By : Admin</h5>
+  <br>
+<div id="dashboard">
+
+  <div class="card" onclick="openPage('rptmaster.html')">
+<i class="fa fa-chart-line"></i>
+<span>Reports Master</span>
+  
+  
+</div>
+
+<div class="card" onclick="openPage('lg.html')">
+<i class="fa fa-sign-out-alt"></i>
+<span>Logout</span>
+</div>
+
+
+
+
+
+</div>
+
+</div>
+
+<footer>
+
+<div class="footer-box">
+
+<div>Sastha Software | Call : (+91) 6383003056</div>
+
+</div>
+
+</footer>
+
+<script>
+
+function toggleMenu(){
+document.getElementById("sidebar").classList.toggle("active");
+}
+
+function openPage(page){
+window.location.href = page;
+}
+
+</script>
+
+</body>
+</html>

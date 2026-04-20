@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rental Receipt Manager - Full Format</title>
+    <style>
+        /* UI STYLES */
+        :root { --primary: #c2185b; --bg: #f4f7f6; }
+        * { box-sizing: border-box; font-family: 'Arial', sans-serif; }
+        body { margin: 0; background: var(--bg); padding: 20px; }
+        .container { max-width: 1100px; margin: auto; }
+        .no-print { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { color: var(--primary); text-align: center; margin: 0 0 15px 0; }
+        
+        .search-area { display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; }
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        .table-responsive { overflow-x: auto; }
+        table.ui-table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; min-width: 800px; }
+        .ui-table th { background: #f06292; color: white; padding: 12px; text-align: left; font-size: 13px; white-space: nowrap; }
+        .ui-table td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        
+        /* PRINT AREA STYLES */
+        #printableInvoice { display: none; }
+
+        @media print {
+            @page { size: A4; margin: 10mm; }
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; }
+            #printableInvoice { display: block !important; width: 100%; border: 2px solid #000; color: #000; }
+            
+            .inv-header { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 2px solid #000; }
+            .header-text { text-align: center; flex: 1; line-height: 1.3; }
+            .header-logo { width: 75px; height: auto; }
+
+            .inv-info-row { display: flex; border-bottom: 2px solid #000; background: #fff; }
+            .info-left { flex: 1; padding: 10px; border-right: 2px solid #000; }
+            .info-right { width: 300px; display: flex; flex-direction: column; }
+            .meta-item { flex: 1; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+            .meta-item:first-child { border-bottom: 1px solid #000; }
+
+            .inv-tenant-section { padding: 12px; border-bottom: 1px solid #000; }
+            .tenant-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 13px; margin-top: 8px; }
+            
+            .data-table { width: 100%; border-collapse: collapse; }
+            .data-table th, .data-table td { border: 1px solid #000; padding: 10px; font-size: 13px; }
+            .data-table th { background: #f2f2f2; font-weight: bold; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            
+            .row-main-data { height: 180px; vertical-align: top; }
+            
+            .amount-section { padding: 12px; border-bottom: 1px solid #000; font-size: 13px; background: #fafafa; }
+            .terms-section { padding: 10px; font-size: 10px; border-bottom: 1px solid #000; line-height: 1.5; color: #444; }
+
+            .inv-footer { display: flex; justify-content: space-between; align-items: flex-end; padding: 70px 40px 40px 40px; }
+            .sig-box { text-align: center; font-size: 14px; font-weight: bold; color: #c2185b; }
+            .sig-line { border-top: 2px solid #c2185b; width: 200px; margin-top: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="no-print">
+        <h2>Duplicate Bill</h2>
+        <div class="search-area">
+            <input type="text" id="searchInput" placeholder="Search Txn ID, Bill No, or Tenant..." onkeyup="filterData()">
+            <button onclick="fetchData()">Search</button>
+        </div>
+        <p id="loadingMsg" style="text-align:center; color: var(--primary); display:none;">Loading...</p>
+    </div>
+
+    <div class="no-print table-responsive">
+        <table class="ui-table">
+            <thead>
+                <tr>
+                    <th>Transaction_Id</th>
+                    <th>Bill No</th>
+                    <th>Tenant Name</th>
+                    <th>Shop No</th>
+                    <th>Mobile</th>
+                    <th>GSTIN</th> <th>Amount</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="printableInvoice">
+        <div class="inv-header">
+            <img src="./3k.png" class="header-logo" alt="Logo">
+            <div class="header-text">
+                <div style="color:blue; font-weight:bold; font-size:12px;">உ</div>
+                <div style="color:#c2185b; font-weight:bold; font-size:12px;">ஸ்ரீ ராஜராஜேஸ்வரி அம்பாள் துணை</div>
+                <div style="color:green; font-weight:bold; font-size:16px;">கோவில்பட்டி ஆயிர வைசிய காசுக்காரச் செட்டிப்பிள்ளைகள் சங்கம்</div>
+                <div style="color:#c2185b; font-weight:bold; font-size:13px;">23, வடக்கு ரத வீதி சிவன் கோயில் தெரு, கோவில்பட்டி - 628 501</div>
+                <br><div style="color:green; font-weight:bold; font-size:13px; margin-top: 3px;">GSTIN: 33AABAK8236A2Z3</div>
+                <div style="margin-top:10px; font-weight:bold; color:blue; text-decoration: underline; font-size: 15px;">வாடகை ரசீது (Tax Invoice)</div>
+            </div>
+            <img src="./2.jpg" class="header-logo" alt="Logo">
+        </div>
+
+        <div class="inv-info-row">
+            <div class="info-left">
+                <span style="font-size: 11px; color: #555;">Transaction ID:</span><br>
+                <b id="pTxnID" style="font-size: 16px; letter-spacing: 1px;"></b>
+            </div>
+            <div class="info-right">
+                <div class="meta-item"><span>Bill No:</span> <b id="pBillNo"></b></div>
+                <div class="meta-item"><span>Date:</span> <b id="pDate"></b></div>
+            </div>
+        </div>
+
+        <div class="inv-tenant-section">
+            <div style="font-size: 11px; margin-bottom: 4px;">வாடகைதாரர் விவரம் (Tenant Details):</div>
+            <div id="pTenantName" style="color: #c2185b; font-size: 20px; font-weight: bold; margin-bottom: 6px;"></div>
+            <div class="tenant-grid">
+                <div><b>Shop No:</b> <span id="pShopNo"></span></div>
+                <div><b>Month:</b> <span id="pMonth"></span></div>
+                <div><b>Mobile:</b> <span id="pMobile"></span></div>
+                <div><b>GSTIN :</b> <span id="pRemarks"></span></div>
+            </div>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th width="50%">Particulars (விவரம்)</th>
+                    <th width="15%">HSN</th>
+                    <th width="15%">Rate</th>
+                    <th width="20%">Amount (ரூபாய்)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="row-main-data">
+                    <td class="text-left">
+                        <b>கடை வாடகை (Shop Rent)</b><br>
+                        <div style="margin-top: 15px; font-size: 12px; line-height: 1.8;">
+                            CGST @ <span id="pCgstP"></span>%<br>
+                            SGST @ <span id="pSgstP"></span>%
+                        </div>
+                    </td>
+                    <td class="text-center">9972</td>
+                    <td class="text-center" id="pBaseRate"></td>
+                    <td class="text-right">
+                        <span id="pBaseAmount"></span><br>
+                        <div style="margin-top: 15px; font-size: 12px; line-height: 1.8;">
+                            <span id="pCgstV"></span><br>
+                            <span id="pSgstV"></span>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th colspan="3" class="text-right" style="font-size: 14px;">செலுத்திய தொகை (Total Paid)</th>
+                    <th class="text-right" style="font-size: 16px;">₹<span id="pTotal"></span></th>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="amount-section">
+            <div id="pInWords"><b>Amount in Words:</b> ...</div>
+            <div id="pPending" style="color: #d32f2f; font-weight: bold; margin-top: 8px; font-size: 14px;"></div>
+        </div>
+
+        <div class="terms-section">
+            <b>நிபந்தனைகள்:</b> 1. மாத வாடகையை 5-ம் தேதிக்குள் செலுத்த வேண்டும். 2. உள்வாடகைக்கு விடக்கூடாது. 3. மின்சாரக் கட்டணம் வாடகைதாரரே செலுத்த வேண்டும். 4. GST தொகையை வாடகைதாரரே செலுத்த வேண்டும்.
+        </div>
+
+        <div class="inv-footer">
+            <div class="sig-box">வசூலித்தவர் கையொப்பம்<div class="sig-line"></div></div>
+            <div class="sig-box">வாடகைதாரர் கையொப்பம்<div class="sig-line"></div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyogWMiTNNixoMp7E0NEA7-z_y0Syxxrp_NrG8hWhI7bpPRNokcNAKYo1EyZxxx6qnldA/exec";
+    let allData = [];
+
+    function formatAppDate(dateStr) {
+        if(!dateStr) return "-";
+        const date = new Date(dateStr);
+        if(isNaN(date)) return dateStr;
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return `${String(date.getDate()).padStart(2, '0')}-${months[date.getMonth()]}-${date.getFullYear()}`;
+    }
+
+    async function fetchData() {
+        document.getElementById("loadingMsg").style.display = "block";
+        try {
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({action: "getPayments"}) });
+            const json = await res.json();
+            allData = json.data || [];
+            renderUI(allData);
+        } catch (e) { console.error("API Connection Error"); }
+        document.getElementById("loadingMsg").style.display = "none";
+    }
+
+    function renderUI(data) {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = data.map(row => `
+            <tr>
+                <td style="color:blue;"><b>${row.Transaction_Id || '-'}</b></td>
+                <td>${row.Bill_No}</td>
+                <td>${row["Tenant Name"]}</td>
+                <td>${row.Shop_No}</td>
+                <td>${row.Mobile || '-'}</td>
+                <td>${row.Remarks || '-'}</td> <td>₹${row.Now_Paid}</td>
+                <td><button onclick='preparePrint(${JSON.stringify(row).replace(/'/g, "&apos;")})'>Print Bill</button></td>
+            </tr>
+        `).join("");
+    }
+
+    function filterData() {
+        const val = document.getElementById("searchInput").value.toLowerCase();
+        const filtered = allData.filter(d => 
+            String(d.Bill_No).includes(val) || 
+            String(d.Transaction_Id).toLowerCase().includes(val) || 
+            d["Tenant Name"].toLowerCase().includes(val) ||
+            String(d.Mobile).includes(val) ||
+            String(d.Remarks).includes(val)
+        );
+        renderUI(filtered);
+    }
+
+    function preparePrint(d) {
+        const totalPaid = parseFloat(d.Now_Paid || 0);
+        const baseRate = parseFloat(d.Rental_Per_Month || 0);
+        const taxTotal = totalPaid - baseRate;
+        const taxPercent = d.Tax_Percentage || 18;
+
+        document.getElementById("pTxnID").innerText = d.Transaction_Id || 'N/A';
+        document.getElementById("pBillNo").innerText = d.Bill_No;
+        document.getElementById("pDate").innerText = formatAppDate(d.PaymentDate);
+        document.getElementById("pTenantName").innerText = d["Tenant Name"];
+        document.getElementById("pShopNo").innerText = d.Shop_No;
+        document.getElementById("pMobile").innerText = d.Mobile || '-';
+        document.getElementById("pRemarks").innerText = d.Remarks || '-'; 
+        document.getElementById("pMonth").innerText = d.Months || '-';
+
+        document.getElementById("pCgstP").innerText = (taxPercent / 2);
+        document.getElementById("pSgstP").innerText = (taxPercent / 2);
+        document.getElementById("pBaseRate").innerText = baseRate.toFixed(2);
+        document.getElementById("pBaseAmount").innerText = baseRate.toFixed(2);
+        document.getElementById("pCgstV").innerText = (taxTotal / 2).toFixed(2);
+        document.getElementById("pSgstV").innerText = (taxTotal / 2).toFixed(2);
+        document.getElementById("pTotal").innerText = totalPaid.toFixed(2);
+
+        document.getElementById("pInWords").innerHTML = `<b>Amount in Words:</b> Indian Rupees ${totalPaid} Only`;
+        
+        const pending = parseFloat(d.Pending || 0);
+        document.getElementById("pPending").innerHTML = pending > 0 ? 
+            `மீதமுள்ள தொகை (Pending Amount): ₹${pending}` : 
+            `பாக்கித் தொகை இல்லை (No Pending Amount)`;
+
+        setTimeout(() => { window.print(); }, 400);
+    }
+
+    window.onload = fetchData;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Hall Rental Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  max-width: 210mm;
+  margin: auto;
+  font-size: 13px;
+  background:#fff0f6;
+}
+
+h2 {
+  text-align: center;
+  color:#c2185b;
+}
+
+/* TABLE */
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:10px;
+  background:#fff;
+}
+
+td, th {
+  border:1px solid #c2185b;
+  padding:6px;
+  text-align:center;
+}
+
+th {
+  background:#f8bbd0;
+}
+
+/* INPUT */
+input {
+  width:100%;
+  padding:6px;
+  border:1px solid #c2185b;
+  border-radius:5px;
+}
+
+/* BUTTON */
+button {
+  background:#c2185b;
+  color:#fff;
+  padding:8px 10px;
+  border:none;
+  border-radius:5px;
+  margin:2px;
+  cursor:pointer;
+}
+
+button:hover {
+  background:#880e4f;
+}
+
+/* LOADING */
+#loading {
+  display:none;
+  text-align:center;
+  font-weight:bold;
+  color:#c2185b;
+}
+
+/* PRINT */
+@media print {
+  #controls, #loading { display:none; }
+}
+
+/* MOBILE */
+@media(max-width:600px){
+  table, td, th { font-size:11px; }
+}
+</style>
+
+<script>
+
+const API_URL=" https://script.google.com/macros/s/AKfycbxzDRlYZN-pVUEdwqRMrf59dz_loF7KVVQFkoLzxE_IrwYrSlk8CWUEqlv2PLQA6HVk/exec";
+
+// DATE FORMAT DISPLAY
+function formatDate(d){
+  let date=new Date(d);
+  let m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return date.getDate()+"-"+m[date.getMonth()]+"-"+date.getFullYear();
+}
+
+// LOADING
+function showLoading(){ document.getElementById("loading").style.display="block"; }
+function hideLoading(){ document.getElementById("loading").style.display="none"; }
+
+// LOAD DATA
+function loadReport(){
+ showLoading();
+
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+   showReport(data);
+   hideLoading();
+ });
+}
+
+// SHOW REPORT
+function showReport(data){
+
+ let html="";
+
+ let t_hall=0, t_other=0, t_cgst=0, t_sgst=0, t_total=0;
+
+ for(let i=1;i<data.length;i++){
+
+   let bill=data[i][0];
+   let date=formatDate(data[i][1]);
+   let address=data[i][4];
+
+   let hall=Number(data[i][5])||0;
+   let other=Number(data[i][6])||0;
+
+   let cgst=Number(data[i][8])||0;
+   let sgst=Number(data[i][9])||0;
+
+   let total=hall+other+cgst+sgst;
+
+   t_hall+=hall;
+   t_other+=other;
+   t_cgst+=cgst;
+   t_sgst+=sgst;
+   t_total+=total;
+
+   html+=`<tr>
+     <td>${bill}</td>
+     <td>${date}</td>
+     <td>${address}</td>
+     <td>${hall.toFixed(2)}</td>
+     <td>${other.toFixed(2)}</td>
+     <td>${cgst.toFixed(2)}</td>
+     <td>${sgst.toFixed(2)}</td>
+     <td>${total.toFixed(2)}</td>
+   </tr>`;
+ }
+
+ document.getElementById("reportTable").innerHTML=html;
+
+ document.getElementById("t_hall").innerText=t_hall.toFixed(2);
+ document.getElementById("t_other").innerText=t_other.toFixed(2);
+ document.getElementById("t_cgst").innerText=t_cgst.toFixed(2);
+ document.getElementById("t_sgst").innerText=t_sgst.toFixed(2);
+ document.getElementById("t_total").innerText=t_total.toFixed(2);
+}
+
+// ✅ SINGLE DATE FIXED
+function filterSingleDate(){
+ let d=document.getElementById("singleDate").value;
+ if(!d){ alert("Select Date"); return; }
+
+ showLoading();
+
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+   let f=[data[0]];
+
+   for(let i=1;i<data.length;i++){
+
+     let sheetDate = new Date(data[i][1]);
+     let inputDate = new Date(d);
+
+     if(
+       sheetDate.getFullYear() === inputDate.getFullYear() &&
+       sheetDate.getMonth() === inputDate.getMonth() &&
+       sheetDate.getDate() === inputDate.getDate()
+     ){
+       f.push(data[i]);
+     }
+   }
+
+   showReport(f);
+   hideLoading();
+ });
+}
+
+// ✅ RANGE FIXED
+function filterByDate(){
+ let from=document.getElementById("fromDate").value;
+ let to=document.getElementById("toDate").value;
+
+ if(!from || !to){ alert("Select dates"); return; }
+
+ showLoading();
+
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+   let f=[data[0]];
+
+   let fDate=new Date(from);
+   let tDate=new Date(to);
+
+   for(let i=1;i<data.length;i++){
+     let d=new Date(data[i][1]);
+
+     if(d>=fDate && d<=tDate){
+       f.push(data[i]);
+     }
+   }
+
+   showReport(f);
+   hideLoading();
+ });
+}
+
+// ✅ MONTH FIXED
+function filterByMonth(){
+ let m=document.getElementById("monthFilter").value;
+
+ if(!m){ alert("Select Month"); return; }
+
+ showLoading();
+
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+   let f=[data[0]];
+
+   for(let i=1;i<data.length;i++){
+
+     let d=new Date(data[i][1]);
+     let monthValue=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0');
+
+     if(monthValue===m){
+       f.push(data[i]);
+     }
+   }
+
+   showReport(f);
+   hideLoading();
+ });
+}
+
+// PRINT
+function printReport(){ window.print(); }
+
+window.onload=loadReport;
+
+</script>
+</head>
+
+<body>
+
+<h2>AVKC Chathiram Mandapam Report</h2>
+
+<div id="controls">
+<table>
+<tr>
+
+<td>Single Date<br><input type="date" id="singleDate"></td>
+<td>From Date<br><input type="date" id="fromDate"></td>
+<td>To Date<br><input type="date" id="toDate"></td>
+<td>Month<br><input type="month" id="monthFilter"></td>
+
+<td>
+<br>
+<button onclick="filterSingleDate()">Date</button>
+<button onclick="filterByDate()">Range</button>
+<button onclick="filterByMonth()">Month</button>
+<button onclick="loadReport()">All</button>
+<button onclick="printReport()">Print</button>
+</td>
+
+</tr>
+</table>
+</div>
+
+<div id="loading">Please wait... Loading data...</div>
+
+<table>
+
+<tr>
+<th>Bill No</th>
+<th>Date</th>
+<th>Tenant</th>
+<th>Hall Rental</th>
+<th>Other Expenses</th>
+<th>CGST</th>
+<th>SGST</th>
+<th>Total</th>
+</tr>
+
+<tbody id="reportTable"></tbody>
+
+<tr>
+<td colspan="3"><b>Total</b></td>
+<td id="t_hall"><b>0</b></td>
+<td id="t_other"><b>0</b></td>
+<td id="t_cgst"><b>0</b></td>
+<td id="t_sgst"><b>0</b></td>
+<td id="t_total"><b>0</b></td>
+</tr>
+
+</table>
+
+</body>
+</html>

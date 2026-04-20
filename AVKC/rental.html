@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Rent Payment System - Professional Billing</title>
+<style>
+/* --- UI STYLES (Visible on Screen) --- */
+*{box-sizing:border-box;}
+body{margin:0;font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f4f6f8;}
+header{background:#c2185b;color:#fff;padding:15px;text-align:center;font-size:22px;font-weight:bold;box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+.header-logo { width: 75px; height: auto; }
+
+.container{max-width:1000px;margin:20px auto;padding:10px;}
+.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-bottom:20px;border-top:5px solid #c2185b;}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:15px;}
+label{font-size:13px;font-weight:bold;display:block;margin-bottom:5px;color:#444;}
+input,select,textarea{width:100%;padding:12px;border:1px solid #ccc;border-radius:8px;font-size:14px;outline:none;}
+input:focus{border-color:#c2185b;}
+textarea{height:80px;resize:none;}
+button{width:100%;padding:12px;border:none;border-radius:8px;background:#c2185b;color:#fff;font-weight:bold;cursor:pointer;font-size:16px;transition:0.3s;}
+button:hover{background:#880e4f; transform: translateY(-1px);}
+
+/* --- SEARCH RESULTS --- */
+#tenantResult{margin-top:15px;background:#fff;padding:15px;border-radius:8px;display:flex;flex-wrap:wrap;gap:15px;justify-content:center;border:1px dashed #c2185b;}
+.tenant-box{background:#f9f9f9;padding:12px;border-radius:8px;text-align:center;width:180px;border:1px solid #ddd;transition: 0.2s;}
+.tenant-box:hover{border-color:#c2185b; background:#fff;}
+.tenant-box img{width:100px;height:120px;object-fit:cover;border-radius:5px;margin-bottom:10px;border:1px solid #eee;}
+.tenant-box span{font-size:12px;font-weight:bold;display:block;margin-bottom:8px;color:#333;}
+.select-btn{background:#2e7d32; padding:5px; font-size:12px;}
+
+/* --- PRINTING LOGIC --- */
+#bill { display: none; min-height: 100vh; }
+  
+@media print {
+
+  /* Hide everything */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only bill */
+  #bill, #bill * {
+    visibility: visible;
+  }
+
+  /* Fix position */
+  #bill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    display: block !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Remove extra spacing */
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* A4 setup */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  /* Font */
+  body {
+    font-family: 'Times New Roman';
+  }
+
+  /* Avoid page break issues */
+  table, tr, td {
+    page-break-inside: avoid;
+  }
+
+  /* Image control */
+  img {
+    max-width: 80px;
+  }
+
+}
+</style>
+</head>
+<body>
+
+<header>RENTAL BILLING SYSTEM</header>
+
+<div class="container">
+  <!-- Search Section -->
+  <div class="card">
+    <div class="row">
+      <div style="grid-column:span 2">
+        <label>Search (Shop No / Name / Mobile)</label>
+        <input id="searchKey" placeholder="Type here to search...">
+      </div>
+      <div style="align-self:end">
+        <button onclick="searchTenant()">🔍 Find Tenant</button>
+      </div>
+    </div>
+    <div id="tenantResult"></div>
+  </div>
+
+  <!-- Entry Form -->
+  <div class="card">
+    <h3>Payment Details</h3>
+    <div id="selectedInfo" style="text-align:center; color:#c2185b; font-weight:bold; margin-bottom:20px;">Please select a tenant to begin.</div>
+    
+    <div class="row">
+      <div><label>Payment Date</label><input type="date" id="paymentDate"></div>
+      <div>
+        <label>Receipt Category</label>
+        <select id="transactionId">
+          <option value="">-- Choose Category --</option>
+          <option>மெயின் ரோடு, கடைகள் வாடகை ரசீது</option>
+          <option>தெற்கு பஜார், கடைகள் வாடகை ரசீது</option>
+          <option>அன்னதானசத்திரம், கடைகள் வாடகை ரசீது</option>
+          <option>கதிரேசன் கோவில் ரோடு, கடைகள் வாடகை ரசீது</option>
+        </select>
+      </div>
+      <div>
+        <label>Months Paid</label>
+        <select id="months" multiple onchange="calculate()">
+          <option>January</option><option>February</option><option>March</option><option>April</option>
+          <option>May</option><option>June</option><option>July</option><option>August</option>
+          <option>September</option><option>October</option><option>November</option><option>December</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><label>Monthly Rent (₹)</label><input id="rental" type="number" oninput="calculate()"></div>
+      <div><label>Total Gross (₹)</label><input id="grossAmt" readonly style="background:#f0f0f0;"></div>
+      <div><label>Discount (₹)</label><input id="discount" type="number" value="0" oninput="calculate()"></div>
+    </div>
+
+    <div class="row">
+      <div><label>GST (%)</label><input id="taxPercentage" type="number" value="18" oninput="calculate()"></div>
+      <div><label>Tax Amount (₹)</label><input id="taxAmt" readonly style="background:#f0f0f0;"></div>
+      <div><label>Net Amount (₹)</label><input id="netAmt" readonly style="background:#f0f0f0; font-weight:bold;"></div>
+    </div>
+
+    <div class="row">
+      <div><label>Amount Now Paid (₹)</label><input id="nowPaid" type="number" oninput="calculate()" style="border: 2px solid #2e7d32;"></div>
+      <div><label>Pending Balance (₹)</label><input id="pending" readonly style="color:red; font-weight:bold; background:#fff1f1;"></div>
+      <div><label>GSTIN</label><input id="rentalSet"></div>
+    </div>
+
+    <div class="row">
+      <div style="grid-column:span 2"><label>Remarks / Notes</label><textarea id="remarks"></textarea></div>
+      <div><label>Upload Photo</label><input type="file" id="imgUpload" accept="image/*"></div>
+    </div>
+    <br>
+    <button id="saveBtn" onclick="saveAndPrint()">💾 Save...</button>
+  </div>
+</div>
+
+<!-- This is the hidden Print Container -->
+<div id="bill"></div>
+
+<script>
+// --- URL CONFIG ---
+const SEARCH_URL = "https://script.google.com/macros/s/AKfycbwnY99_hETH8F_nYcS1jbW_5PfuGXWHVA9ZIf-xKoJ3BjEcSZ455K38ey7wDh6qlIsSvw/exec"; 
+const PAYMENT_URL = "https://script.google.com/macros/s/AKfycbyogWMiTNNixoMp7E0NEA7-z_y0Syxxrp_NrG8hWhI7bpPRNokcNAKYo1EyZxxx6qnldA/exec";
+
+let activeTenant = null;
+let uploadedBase64 = "";
+
+document.getElementById('paymentDate').valueAsDate = new Date();
+
+function formatImg(src) {
+  if (!src) return "https://via.placeholder.com/120x140?text=No+Photo";
+  if (typeof src === 'string' && src.startsWith('[')) {
+    try { src = JSON.parse(src)[0]; } catch(e) {}
+  }
+  if (src.startsWith("data:image")) return src;
+  if (src.length > 100) return "data:image/jpeg;base64," + src;
+  return src;
+}
+
+document.getElementById("imgUpload").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = () => uploadedBase64 = reader.result;
+    reader.readAsDataURL(file);
+  }
+});
+
+async function searchTenant() {
+  const key = document.getElementById("searchKey").value;
+  if(!key) return alert("Please enter search criteria");
+  const resDiv = document.getElementById("tenantResult");
+  resDiv.innerHTML = "Loading...";
+  
+  try {
+    const res = await fetch(SEARCH_URL, { method: "POST", body: JSON.stringify({ action: "get" }) });
+    const data = await res.json();
+    resDiv.innerHTML = "";
+    
+    const filtered = data.filter(r => 
+      String(r[3]).includes(key) || 
+      String(r[5]).toLowerCase().includes(key.toLowerCase()) || 
+      String(r[7]).includes(key)
+    );
+
+    if(filtered.length === 0) resDiv.innerHTML = "No tenant found.";
+
+    filtered.forEach(r => {
+      const box = document.createElement("div");
+      box.className = "tenant-box";
+      box.innerHTML = `
+        <img src="${formatImg(r[15])}">
+        <span>${r[5]}<br><b>Shop: ${r[3]}</b></span>
+        <button class="select-btn" onclick='selectTenant(${JSON.stringify(r)})'>Select</button>
+      `;
+      resDiv.appendChild(box);
+    });
+  } catch(e) { resDiv.innerHTML = "Error connecting to server."; }
+}
+
+function selectTenant(r) {
+  activeTenant = r;
+  document.getElementById("rental").value = r[12]; 
+  document.getElementById("rentalSet").value = r[8]; 
+  document.getElementById("selectedInfo").innerHTML = `Selected: <span style="color:#2e7d32">${r[5]} (Shop ${r[3]})</span>`;
+  document.getElementById("tenantResult").innerHTML = "";
+  calculate();
+}
+
+function calculate() {
+  const count = [...document.getElementById("months").selectedOptions].length || 1;
+  const rent = +document.getElementById("rental").value || 0;
+  const gross = count * rent;
+  document.getElementById("grossAmt").value = gross;
+  
+  const discount = +document.getElementById("discount").value || 0;
+  const taxable = gross - discount;
+  const taxPer = +document.getElementById("taxPercentage").value || 0;
+  const taxAmt = (taxable * taxPer) / 100;
+  
+  document.getElementById("taxAmt").value = taxAmt.toFixed(2);
+  const net = taxable + taxAmt;
+  document.getElementById("netAmt").value = net.toFixed( net % 1 === 0 ? 0 : 2);
+  
+  const paid = +document.getElementById("nowPaid").value || 0;
+  document.getElementById("pending").value = (net - paid).toFixed(2);
+}
+
+async function saveAndPrint() {
+  if(!activeTenant) return alert("Select a tenant first!");
+  if(!document.getElementById("transactionId").value) return alert("Select Receipt Category!");
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true; 
+  btn.innerText = "Saving to Server...";
+const data = {
+  action: "savePayment",
+  tenantName: activeTenant[5],
+  shopNo: activeTenant[3],
+  mobile: activeTenant[7],
+  altMobile: document.getElementById("rentalSet").value,
+  paymentDate: document.getElementById("paymentDate").value,
+  transactionId: document.getElementById("transactionId").value,
+  months: [...document.getElementById("months").selectedOptions].map(o=>o.value).join(", "),
+  rental: document.getElementById("rental").value,
+  taxAmt: document.getElementById("taxAmt").value,
+  taxPercentage: document.getElementById("taxPercentage").value,
+  nowPaid: document.getElementById("nowPaid").value,
+  pending: document.getElementById("pending").value,
+  remarks: document.getElementById("rentalSet").value,   // ✅ ADDED
+  imageBase64: uploadedBase64 || formatImg(activeTenant[15])
+};
+
+  try {
+    const res = await fetch(PAYMENT_URL, { method: "POST", body: JSON.stringify(data) });
+    const result = await res.json();
+
+    // Generate Bill
+    generateBillPrint(data, result.billNo);
+
+    // ✅ FORCE SHOW BILL
+    const billDiv = document.getElementById("bill");
+    billDiv.style.display = "block";
+
+    // ✅ WAIT FOR DOM RENDER
+    setTimeout(() => {
+  window.print();
+
+  setTimeout(() => {
+    document.getElementById("bill").style.display = "none";
+    location.reload();
+  }, 1000);
+
+}, 800);
+  } catch (e) {
+    alert("System Error: Could not save.");
+    btn.disabled = false;
+    btn.innerText = "💾 Save...";
+  }
+}
+function generateBillPrint(d, billNo) {
+  const taxH = (+d.taxAmt / 2).toFixed(2);
+  const taxPH = (d.taxPercentage / 2).toFixed(2);
+  const total = (+d.nowPaid).toFixed(2);
+
+  document.getElementById("bill").innerHTML = `
+  <div style="border:2px solid #000; padding:15px; font-family:'Times New Roman';">
+
+<!-- HEADER -->
+<div style="display:flex; align-items:center; justify-content:space-between;">
+
+  <!-- LEFT LOGO -->
+  <img src="./3k.png" style="width:80px; height:auto;">
+
+  <!-- CENTER TEXT -->
+  <div style="text-align:center; flex:1;">
+    <div style="font-size:12px;">உ</div>
+    <div style="color:#c2185b; font-weight:bold; font-size:12px;">
+      ஸ்ரீ ராஜராஜேஸ்வரி அம்பாள் துணை
+    </div>
+    <div style="color:green; font-weight:bold; font-size:16px;">
+      கோவில்பட்டி ஆயிர வைசிய காசுக்காரச் செட்டிப்பிள்ளைகள் சங்கம்
+    </div>
+    <div style="color:#c2185b; font-size:13px;font-weight:bold;">
+      23, வடக்கு ரத வீதி சிவன் கோவில் தெரு, கோவில்பட்டி - 628 501
+    </div>
+    <div style="color:green; margin-top:5px; font-weight:bold;font-size:13px;">
+      GSTIN: 33AABAK8236A2Z3
+    </div>
+    <div style="color:blue;margin-top:8px;font-size:15px; font-weight:bold; text-decoration:underline;">
+      வாடகை ரசீது (Tax Invoice)
+    </div>
+  </div>
+
+  <!-- RIGHT LOGO -->
+  <img src="./2.jpg" style="width:80px; height:auto;">
+
+</div>
+
+    <!-- TOP BOX -->
+    <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+      <tr>
+        <td style="border:1px solid #000; padding:10px; width:70%;">
+          <b>Transaction ID:</b><br>
+          ${d.transactionId}
+        </td>
+        <td style="border:1px solid #000; padding:10px;">
+          <b>Bill No:</b> ${billNo}
+        </td>
+      </tr>
+      <tr>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;">
+          <b>Date:</b> ${d.paymentDate}
+        </td>
+      </tr>
+    </table>
+
+    <!-- TENANT DETAILS -->
+    <div style="border:1px solid #000; border-top:none; padding:10px;">
+      <b>வாடகையாளர் விபரம் (Tenant Details):</b><br><br>
+      <span style="color:#c2185b; font-size:18px; font-weight:bold;">
+        ${d.tenantName}
+      </span><br><br>
+
+      Shop No: ${d.shopNo} &nbsp;&nbsp;&nbsp;&nbsp;
+      Month: ${d.months}<br>
+
+      Mobile: ${d.mobile} &nbsp;&nbsp;&nbsp;&nbsp;
+      GSTIN: ${d.altMobile}<br>
+    </div>
+
+    <!-- TABLE -->
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <th style="border:1px solid #000;">Particulars (விவரம்)</th>
+        <th style="border:1px solid #000;">HSN</th>
+        <th style="border:1px solid #000;">Rate</th>
+        <th style="border:1px solid #000;">Amount (ரூபாய்)</th>
+      </tr>
+
+      <tr>
+        <td style="border:1px solid #000; height:120px; vertical-align:top; padding:10px;">
+          கடை வாடகை (Shop Rent)<br><br>
+          CGST @ ${taxPH}%<br>
+          SGST @ ${taxPH}%
+        </td>
+
+        <td style="border:1px solid #000; text-align:center;">9972</td>
+
+        <td style="border:1px solid #000; text-align:center;">
+          ${d.rental}.00
+        </td>
+
+        <td style="border:1px solid #000; text-align:right; padding:10px;">
+          ${d.rental}.00<br>
+          ${taxH}<br>
+          ${taxH}
+        </td>
+      </tr>
+    </table>
+
+    <!-- TOTAL -->
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td style="border:1px solid #000; text-align:center; font-weight:bold;">
+          செலுத்திய தொகை (Total Paid)
+        </td>
+        <td style="border:1px solid #000; text-align:right; font-weight:bold; font-size:18px;">
+          ₹${total}
+        </td>
+      </tr>
+    </table>
+
+    <!-- WORDS -->
+    <div style="margin-top:10px;">
+      Amount in Words: Indian Rupees ${total} Only
+    </div>
+
+    <!-- STATUS -->  
+<div style="font-weight:bold; margin-top:5px; color:${(+d.pending > 0 ? 'red' : 'green')}">
+  ${(+d.pending > 0) 
+    ? `பாக்கித் தொகை: ₹${d.pending}` 
+    : `பாக்கித் தொகை இல்லை (No Pending Amount)`
+  }
+</div>
+
+    <!-- FOOTER TEXT -->
+    <div style="font-size:12px; margin-top:10px;">
+      விதிமுறைகள்: 1. மாத வாடகை 5ம் தேதிக்குள் செலுத்த வேண்டும்.
+      2. 2 மாதம் வாடகை நிலுவையில் இருந்தால் கடை காலி செய்யப்படும்.
+      3. மின்சார கட்டணம் தனியாக செலுத்த வேண்டும்.
+      4. GST தொகையை கட்டாயம் செலுத்த வேண்டும்.
+    </div>
+
+    <!-- SIGNATURE -->
+    <div style="display:flex; justify-content:space-between; margin-top:50px;">
+      <div style="text-align:center;">
+        வசூலித்தவர் கையொப்பம்
+        <div style="border-top:1px solid #000; width:200px; margin-top:10px;"></div>
+      </div>
+
+      <div style="text-align:center;">
+        வாடகையாளர் கையொப்பம்
+        <div style="border-top:1px solid #000; width:200px; margin-top:10px;"></div>
+      </div>
+    </div>
+
+  </div>
+  `;
+}
+</script>
+</body>
+</html>

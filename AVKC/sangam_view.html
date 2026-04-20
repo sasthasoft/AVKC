@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sangam Members - 2 Per Row Details View</title>
+<style>
+:root {
+  --primary-color: #d63384;
+  --bg-color: #fff;
+  --text-color: #333;
+  --btn-hover: #c12d70;
+}
+* { box-sizing:border-box; margin:0; padding:0; font-family: Arial, sans-serif; }
+body { background:#fce4ec; padding:10px; }
+
+/* Container */
+.container { max-width:1000px; margin:auto; }
+
+/* Search Header */
+.search-header { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; justify-content:center; }
+.search-header input { padding:10px; border-radius:8px; border:1px solid #ccc; width:200px; }
+
+/* Member Grid - 2 per row */
+.member-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:15px; }
+@media(max-width:700px){ .member-grid { grid-template-columns: 1fr; } }
+
+.member-card { background: var(--bg-color); border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:10px; cursor:pointer; transition:0.3s; }
+.member-card:hover { box-shadow:0 6px 15px rgba(0,0,0,0.2); }
+.member-card img { width:100%; height:200px; object-fit:cover; border-radius:8px; margin-bottom:10px; }
+.member-card h3 { font-size:16px; color:var(--primary-color); margin-bottom:5px; text-align:center; }
+.member-card p { font-size:14px; color:#555; text-align:center; }
+
+/* Modal */
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); justify-content:center; align-items:center; z-index:10000; overflow:auto; padding:20px; }
+.modal-content { background:#fff; border-radius:10px; max-width:600px; width:100%; padding:20px; position:relative; }
+.modal-content img { width:100%; height:auto; max-height:400px; object-fit:contain; border-radius:10px; margin-bottom:15px; }
+.modal-content h2 { color:var(--primary-color); margin-bottom:10px; text-align:center; }
+.modal-content p { margin-bottom:8px; color:#333; font-size:15px; }
+.close-btn { position:absolute; top:10px; right:15px; font-size:22px; cursor:pointer; font-weight:bold; }
+.print-btn { padding:10px 20px; background: var(--primary-color); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.3s; margin-top:10px; display:block; margin-left:auto; margin-right:auto; }
+.print-btn:hover { background: var(--btn-hover); }
+
+/* Print style */
+@media print {
+  body * { visibility:hidden; }
+  #modal, #modal * { visibility:visible; }
+  #modal { position:absolute; top:0; left:0; width:100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2 style="text-align:center; color:var(--primary-color); margin-bottom:20px;">Sangam Members</h2>
+
+<!-- Search Filters -->
+<div class="search-header">
+  <input type="text" id="searchName" placeholder="Search Name">
+  <input type="text" id="searchMobile" placeholder="Search Mobile">
+  <input type="text" id="searchEmail" placeholder="Search Email">
+</div>
+
+<!-- Member Grid -->
+<div class="member-grid" id="memberGrid">
+  <!-- Members populated dynamically -->
+</div>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal">
+  <div class="modal-content" id="modalContent">
+    <span class="close-btn" onclick="closeModal()">&times;</span>
+    <img id="detailImage" src="" alt="Member Photo">
+    <h2 id="detailName"></h2>
+    <p><strong>Age:</strong> <span id="detailAge"></span></p>
+    <p><strong>Mobile:</strong> <span id="detailMobile"></span></p>
+    <p><strong>Email:</strong> <span id="detailEmail"></span></p>
+    <p><strong>Gender:</strong> <span id="detailGender"></span></p>
+    <p><strong>Address:</strong> <span id="detailAddress"></span></p>
+    <button class="print-btn" onclick="printMember()">Print Details</button>
+  </div>
+</div>
+
+<script>
+const webAppUrl = "https://script.google.com/macros/s/AKfycbzfsJ6wIis1uyAZQNiTO1dKkOvFB8__8qWhYqsM55BK32A34lUqrfOuCIax_Usg-SXA2A/exec"; // Replace with your GAS URL
+const memberGrid = document.getElementById("memberGrid");
+
+// Modal Elements
+const modal = document.getElementById("modal");
+const detailImage = document.getElementById("detailImage");
+const detailName = document.getElementById("detailName");
+const detailAge = document.getElementById("detailAge");
+const detailMobile = document.getElementById("detailMobile");
+const detailEmail = document.getElementById("detailEmail");
+const detailGender = document.getElementById("detailGender");
+const detailAddress = document.getElementById("detailAddress");
+
+// Load members
+let allMembers = [];
+async function loadMembers(){
+  try{
+    const res = await fetch(`${webAppUrl}?action=view`);
+    const data = await res.json();
+    allMembers = data;
+    displayMembers(allMembers);
+  } catch(err){ console.error(err); memberGrid.innerHTML = "<p>Error loading members</p>"; }
+}
+
+// Display members in grid
+function displayMembers(data){
+  memberGrid.innerHTML = "";
+  data.forEach(member=>{
+    const card = document.createElement("div");
+    card.className = "member-card";
+    card.innerHTML = `
+      <img src="${member.image}" alt="${member.name}">
+      <h3>${member.name}</h3>
+      <p>${member.mobile}</p>
+    `;
+    card.addEventListener("click",()=>showDetails(member));
+    memberGrid.appendChild(card);
+  });
+}
+
+// Show modal
+function showDetails(member){
+  detailImage.src = member.image;
+  detailName.textContent = member.name;
+  detailAge.textContent = member.age;
+  detailMobile.textContent = member.mobile;
+  detailEmail.textContent = member.email;
+  detailGender.textContent = member.gender;
+  detailAddress.textContent = member.address;
+  modal.style.display = "flex";
+}
+
+// Close modal
+function closeModal(){ modal.style.display = "none"; }
+
+// Print single member
+function printMember(){ window.print(); }
+
+// Close modal on outside click
+window.onclick = function(e){ if(e.target==modal){ closeModal(); } }
+
+// Search/Filter
+const searchName = document.getElementById("searchName");
+const searchMobile = document.getElementById("searchMobile");
+const searchEmail = document.getElementById("searchEmail");
+
+function filterMembers(){
+  const nameVal = searchName.value.toLowerCase();
+  const mobileVal = searchMobile.value.toLowerCase();
+  const emailVal = searchEmail.value.toLowerCase();
+  const filtered = allMembers.filter(m=>{
+    return m.name.toLowerCase().includes(nameVal) &&
+           m.mobile.toLowerCase().includes(mobileVal) &&
+           m.email.toLowerCase().includes(emailVal);
+  });
+  displayMembers(filtered);
+}
+
+searchName.addEventListener("input", filterMembers);
+searchMobile.addEventListener("input", filterMembers);
+searchEmail.addEventListener("input", filterMembers);
+
+// Initial load
+loadMembers();
+</script>
+
+</body>
+</html>

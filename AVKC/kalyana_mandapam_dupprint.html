@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mandapam Report + Invoice</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body {
+  font-family: Arial;
+  max-width: 210mm;
+  margin:auto;
+  background:#fff0f6;
+}
+
+/* HEADING */
+h2 {
+  text-align:center;
+  color:#c2185b;
+  margin:10px 0;
+}
+
+/* TABLE */
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+  background:#fff;
+}
+
+td,th {
+  border:1px solid #c2185b;
+  padding:8px;
+  text-align:center;
+}
+
+th { background:#f8bbd0; }
+
+/* INPUT */
+input {
+  padding:6px;
+  width:150px;
+  border:1px solid #c2185b;
+}
+
+/* BUTTON */
+button {
+  padding:6px 10px;
+  background:#c2185b;
+  color:white;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+}
+
+button:hover { background:#880e4f; }
+
+/* LOADING */
+#loading {
+  display:none;
+  text-align:center;
+  font-weight:bold;
+  color:#c2185b;
+  margin-top:10px;
+}
+
+/* INVOICE */
+#invoice {
+  display:none;
+  width:210mm;
+  min-height:297mm;
+  background:#fff;
+  padding:20px;
+  box-sizing:border-box;
+}
+
+/* PRINT */
+@media print {
+
+  body * { visibility:hidden; }
+
+  #invoice, #invoice * {
+    visibility:visible;
+  }
+
+  #invoice {
+    position:absolute;
+    left:0;
+    top:0;
+    width:210mm;
+  }
+
+}
+
+/* MOBILE */
+@media(max-width:600px){
+  table,td,th { font-size:11px; }
+}
+
+</style>
+
+<script>
+
+const API_URL="https://script.google.com/macros/s/AKfycbxB3PUjlnqf3hPKBfHQfOkmbC_VIIQvrUvTn4H7Mn8r0SZPTgaSTNzBWKWpNh5ijvb3/exec";
+
+let fullData=[];
+
+// DATE FORMAT FUNCTION
+function formatDate(dateStr){
+  let d = new Date(dateStr);
+
+  if(isNaN(d)) return dateStr;
+
+  let day = ("0" + d.getDate()).slice(-2);
+
+  let months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  let month = months[d.getMonth()];
+
+  let year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
+// LOADING
+function showLoading(){ document.getElementById("loading").style.display="block"; }
+function hideLoading(){ document.getElementById("loading").style.display="none"; }
+
+// LOAD DATA
+function loadData(){
+ showLoading();
+
+ fetch(API_URL+"?action=view")
+ .then(res=>res.json())
+ .then(data=>{
+   fullData=data;
+   showTable(data);
+   hideLoading();
+ });
+}
+
+// SHOW TABLE
+function showTable(data){
+
+ let html="";
+
+ for(let i=1;i<data.length;i++){
+
+   let hall=Number(data[i][5])||0;
+   let other=Number(data[i][6])||0;
+   let cgst=Number(data[i][8])||0;
+   let sgst=Number(data[i][9])||0;
+
+   let total=hall+other+cgst+sgst;
+
+   html+=`<tr onclick='openInvoice(${i})'>
+     <td>${data[i][0]}</td>
+     <td>${formatDate(data[i][1])}</td>
+     <td>${data[i][2]}</td>
+     <td>${hall}</td>
+     <td>${other}</td>
+     <td>${cgst}</td>
+     <td>${sgst}</td>
+     <td>${total}</td>
+   </tr>`;
+ }
+
+ document.getElementById("reportTable").innerHTML=html;
+}
+
+// BILL FILTER
+function filterBill(){
+
+ let bill=document.getElementById("billFilter").value;
+
+ if(!bill){
+   showTable(fullData);
+   return;
+ }
+
+ let f=[fullData[0]];
+
+ for(let i=1;i<fullData.length;i++){
+   if(fullData[i][0]==bill){
+     f.push(fullData[i]);
+   }
+ }
+
+ showTable(f);
+}
+
+// OPEN INVOICE
+function openInvoice(i){
+
+ let row=fullData[i];
+
+ document.getElementById("invNo").innerText=row[0];
+ document.getElementById("invDate").innerText=formatDate(row[1]);
+ document.getElementById("buyer").innerText=row[2];
+ document.getElementById("addr").innerText=row[4];
+
+ let hall=Number(row[5])||0;
+ let other=Number(row[6])||0;
+
+ let cgst=Number(row[8])||0;
+ let sgst=Number(row[9])||0;
+
+ let total=hall+other+cgst+sgst;
+
+ document.getElementById("hall").innerText=hall.toFixed(2);
+ document.getElementById("other").innerText=other.toFixed(2);
+ document.getElementById("cgst").innerText=cgst.toFixed(2);
+ document.getElementById("sgst").innerText=sgst.toFixed(2);
+ document.getElementById("total").innerText=total.toFixed(2);
+
+ // SHOW INVOICE
+ document.getElementById("invoice").style.display="block";
+
+ // PRINT
+ setTimeout(()=>{
+   window.print();
+ },500);
+}
+
+window.onload=loadData;
+
+</script>
+
+</head>
+
+<body>
+
+<h2>AVKC MANDAPAM DUP-PRINT</h2>
+
+<div style="text-align:center;">
+Bill No:
+<input type="number" id="billFilter">
+<button onclick="filterBill()">Search</button>
+<button onclick="loadData()">All</button>
+</div>
+
+<div id="loading">Loading... Please wait</div>
+
+<table>
+<tr>
+<th>Bill</th>
+<th>Date</th>
+<th>Tenant</th>
+<th>Hall</th>
+<th>Other</th>
+<th>CGST</th>
+<th>SGST</th>
+<th>Total</th>
+</tr>
+
+<tbody id="reportTable"></tbody>
+</table>
+
+<!-- INVOICE -->
+
+<div id="invoice">
+
+<h2>Tax Invoice</h2>
+
+<table>
+<tr>
+<td style="text-align:left">
+<b>AVKC KALYANA MANDAPAM</b><br>
+  <b> KOVILPATTI - 628 501</b><br>
+GSTIN: 33AABAK8236A2Z3<br>
+
+</td>
+
+<td style="text-align:right">
+Invoice No: <span id="invNo"></span><br>
+Date: <span id="invDate"></span><br>
+</td>
+</tr>
+
+<tr>
+<td style="text-align:left">
+Tenant:<br>
+<span id="buyer"></span><br>
+<span id="addr"></span>
+</td>
+
+<td style="text-align:right">
+State : Tamil Nadu Code : 33
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<th>Sl</th>
+<th>Particulars</th>
+<th>Amount</th>
+</tr>
+
+<tr><td>1</td><td style="text-align:left">Hall Rent</td><td id="hall"></td></tr>
+<tr><td>2</td><td style="text-align:left">Other Expenses</td><td id="other"></td></tr>
+
+<tr><td colspan="2" style="text-align:right">CGST @ 9%</td><td id="cgst"></td></tr>
+<tr><td colspan="2" style="text-align:right">SGST @ 9%</td><td id="sgst"></td></tr>
+
+<tr>
+<td colspan="2" style="text-align:right"><b>Total</b></td>
+<td><b id="total"></b></td>
+</tr>
+
+</table>
+
+<br><br>
+
+<div style="text-align:right">
+Authorised Signatory
+</div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heavy Defaulters Report</title>
+
+<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:Arial, sans-serif;background:#f4f6f8;}
+
+.container{max-width:1200px;margin:auto;padding:10px;}
+
+h2{
+text-align:center;
+color:#c2185b;
+margin:10px 0 15px;
+font-size:22px;
+}
+
+/* Controls */
+.controls{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:8px;
+margin-bottom:15px;
+}
+
+select,input,button{
+padding:8px 10px;
+border-radius:6px;
+border:1px solid #ccc;
+font-size:14px;
+}
+
+button{
+background:#c2185b;
+color:#fff;
+border:none;
+cursor:pointer;
+}
+
+button:hover{opacity:0.9;}
+
+/* Summary */
+.summary{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+gap:10px;
+margin-bottom:15px;
+}
+
+.box{
+background:#fff;
+padding:12px;
+border-radius:10px;
+text-align:center;
+font-weight:bold;
+box-shadow:0 2px 6px rgba(0,0,0,.1);
+font-size:14px;
+}
+
+.red{color:#d32f2f;}
+.orange{color:#ff6f00;}
+.blue{color:#1976d2;}
+
+/* Table */
+.table-wrapper{
+background:#fff;
+border-radius:10px;
+box-shadow:0 2px 8px rgba(0,0,0,.1);
+overflow-x:auto;
+}
+
+table{
+width:100%;
+min-width:700px;
+border-collapse:collapse;
+}
+
+th,td{
+border:1px solid #ddd;
+padding:8px;
+text-align:center;
+font-size:14px;
+}
+
+th{
+background:#f06292;
+color:#fff;
+position:sticky;
+top:0;
+z-index:2;
+}
+
+.heavy{
+background:#ffe0e0;
+font-weight:bold;
+}
+
+/* Loading */
+.loading{
+text-align:center;
+font-weight:bold;
+color:#1976d2;
+margin-bottom:10px;
+display:none;
+}
+
+/* Mobile */
+@media(max-width:600px){
+h2{font-size:18px;}
+select,input,button{font-size:13px;padding:7px;}
+th,td{font-size:12px;padding:6px;}
+.box{font-size:13px;}
+}
+
+/* Print */
+@media print{
+.controls,.loading{display:none;}
+body{background:#fff;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Not Paid Counter Report (Pending Report)</h2>
+
+<div class="controls">
+<select id="yearSelect" onchange="renderReport()"></select>
+
+<input type="text" id="searchInput"
+placeholder="Search Shop / Name / Mobile / Pending Month"
+oninput="renderReport()">
+
+<button onclick="window.print()">Print</button>
+</div>
+
+<div class="loading" id="loadingMsg">Loading... Please wait</div>
+
+<div class="summary" id="summaryBoxes"></div>
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>Shop No</th>
+<th>Tenant Name</th>
+<th>Mobile</th>
+<th>Monthly Rent</th>
+<th>Pending Months</th>
+<th>Pending Amount</th>
+</tr>
+</thead>
+<tbody id="defaulterBody"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+
+const API_URL="https://script.google.com/macros/s/AKfycbyxlyK3FuJ7vpa3HFpuqCa_x_k0V6pO5-w828KmHielditmmkvg_C0jB83AsiVrnUhC/exec";
+
+let tenants=[];
+let payments=[];
+
+const monthNames=[
+"January","February","March","April","May","June",
+"July","August","September","October","November","December"
+];
+
+function findValue(obj,keys){
+for(let k of keys){
+if(obj[k]!==undefined && obj[k]!==null) return obj[k];
+}
+return "";
+}
+
+function getRent(t){
+return parseFloat(findValue(t,["Rent","MonthlyRent","RentAmount","Amount"]))||0;
+}
+
+function isMonthPaid(shop,month,year){
+return payments.some(p=>{
+let s=findValue(p,["ShopNo","Shop_No","Shop No"]);
+if(String(s).trim()!==String(shop).trim()) return false;
+
+let months=findValue(p,["Months","Month"]);
+if(!months) return false;
+
+let arr=months.toString().toLowerCase().split(",").map(x=>x.trim());
+
+let d=findValue(p,["PaymentDate","Date"]);
+let y=d?new Date(d).getFullYear():new Date().getFullYear();
+
+return arr.includes(month.toLowerCase()) && y===year;
+});
+}
+
+async function loadData(){
+document.getElementById("loadingMsg").style.display="block";
+
+let t=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"getTenants"})});
+tenants=(await t.json()).data||[];
+
+let p=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"getPayments"})});
+payments=(await p.json()).data||[];
+
+document.getElementById("loadingMsg").style.display="none";
+
+populateYear();
+renderReport();
+}
+
+function populateYear(){
+let set=new Set();
+payments.forEach(p=>{
+let d=findValue(p,["PaymentDate","Date"]);
+if(d) set.add(new Date(d).getFullYear());
+});
+let sel=document.getElementById("yearSelect");
+sel.innerHTML="";
+[...set].sort().forEach(y=>{
+let o=document.createElement("option");
+o.value=y;
+o.text=y;
+sel.add(o);
+});
+sel.value=new Date().getFullYear();
+}
+
+function renderReport(){
+
+let year=parseInt(document.getElementById("yearSelect").value);
+let currentMonth=new Date().getMonth();
+let searchValue=document.getElementById("searchInput").value.trim().toLowerCase();
+
+let totalDefaulters=0;
+let totalPendingAmount=0;
+let totalPendingMonths=0;
+
+const tbody=document.getElementById("defaulterBody");
+tbody.innerHTML="";
+
+tenants.forEach(t=>{
+
+let shop=findValue(t,["ShopNo","Shop_No","Shop No"]);
+let name=findValue(t,["TenantName","Tenant Name","Name"]);
+let mobile=findValue(t,["Mobile","Mobile_No","Phone"]);
+let rent=getRent(t);
+
+let pendingCount=0;
+
+for(let i=0;i<=currentMonth;i++){
+let month=monthNames[i];
+if(!isMonthPaid(shop,month,year)){
+pendingCount++;
+}
+}
+
+if(pendingCount < 1) return;
+
+let pendingAmount=pendingCount*rent;
+
+/* ===== SMART SEARCH ===== */
+
+if(searchValue){
+
+if(!isNaN(searchValue)){
+if(pendingCount != Number(searchValue)) return;
+}
+else{
+let textData = (shop + " " + name + " " + mobile).toLowerCase();
+if(!textData.includes(searchValue)) return;
+}
+
+}
+
+/* ======================== */
+
+totalDefaulters++;
+totalPendingAmount+=pendingAmount;
+totalPendingMonths+=pendingCount;
+
+tbody.innerHTML+=`
+<tr class="heavy">
+<td>${shop}</td>
+<td>${name}</td>
+<td>${mobile}</td>
+<td>₹ ${rent}</td>
+<td>${pendingCount}</td>
+<td>₹ ${pendingAmount}</td>
+</tr>`;
+});
+
+document.getElementById("summaryBoxes").innerHTML=`
+<div class="box blue">Total Defaulters<br>${totalDefaulters}</div>
+<div class="box red">Total Pending Months<br>${totalPendingMonths}</div>
+<div class="box orange">Total Pending Amount<br>₹ ${totalPendingAmount}</div>
+`;
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>

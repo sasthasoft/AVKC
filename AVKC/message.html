@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Rent Payment System - Merged</title>
+<style>
+/* --- UI STYLES --- */
+*{box-sizing:border-box;}
+body{margin:0;font-family:Arial, sans-serif;background:#f4f6f8;}
+header{background:#c2185b;color:#fff;padding:15px;text-align:center;font-size:22px;}
+
+.container{max-width:1200px;margin:auto;padding:10px;}
+.card{background:#fff;padding:15px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);margin-bottom:15px;border-top:4px solid #c2185b;}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:10px;}
+label{font-size:12px;font-weight:bold;display:block;margin-bottom:5px;}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
+textarea{height:70px;resize:none;}
+button{width:100%;padding:10px;border:none;border-radius:8px;background:#c2185b;color:#fff;font-weight:bold;cursor:pointer;}
+
+/* --- SEARCH RESULT --- */
+#tenantResult{margin-top:10px;background:#fce4ec;padding:15px;border-radius:8px;display:flex;flex-wrap:wrap;gap:15px;justify-content:center;}
+.tenant-box{background:#fff;padding:10px;border-radius:8px;text-align:center;width:180px;border:1px solid #ddd;}
+.tenant-box img{width:120px;height:140px;object-fit:cover;border-radius:5px;background:#eee;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;}
+.tenant-box span{font-size:12px;font-weight:bold;display:block;margin-bottom:5px;color:#880e4f;}
+
+/* --- TABLE --- */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:auto;font-size:12px;margin-top:10px;}
+th,td{border:1px solid #ccc;padding:8px;text-align:center;}
+th{background:#f06292;color:#fff;}
+table img{width:50px;height:60px;object-fit:cover;border-radius:4px;}
+
+/* --- PRINTING (HIDDEN IN UI) --- */
+#bill{display:none;padding:10mm;background:#fff;color:#000;}
+
+@media print {
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #bill, #bill * {
+    visibility: visible;
+  }
+
+  #bill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+  }
+
+   img {
+  width: 120px;      /* fixed width */
+  height: 140px;     /* fixed height */
+  object-fit: contain;  /* VERY IMPORTANT */
+}
+  
+  /* img {
+  max-width: 100%;
+  height: auto;
+} */
+  
+</style>
+</head>
+<body>
+
+<header>Billing</header>
+
+<div class="container">
+  
+  <div class="card">
+    <div class="row">
+      <div style="grid-column:span 2">
+        <label>Search (Shop No / Name / Mobile)</label>
+        <input id="searchKey" placeholder="Search Mobile or Shop No...">
+      </div>
+      <div style="align-self:end">
+        <button onclick="searchTenant()">🔍 Find Tenant</button>
+      </div>
+    </div>
+    <div id="tenantResult"></div>
+  </div>
+
+  <div class="card">
+    <h3>Payment Entry</h3>
+    <div id="selectedInfo" style="text-align:center;color:green;font-weight:bold;margin-bottom:10px; font-size: 16px;"></div>
+    
+    <div class="row">
+      <div><label>Date</label><input type="date" id="paymentDate"></div>
+      <div>
+        <label>Transaction ID</label>
+        <select id="transactionId">
+  <option value="">Select Transaction</option>
+‎          <option> மெயின் ரோடு, கடைகள் வாடகை ரசீது</option>
+‎          <option> தெற்கு பஜார், கடைகள் வாடகை ரசீது</option>
+‎          <option>அன்னதானசத்திரம், கடைகள் வாடகை ரசீது</option>
+‎          <option> கதிரேசன் கோவில் ரோடு, கடைகள் வாடகை ரசீது</option>        </select>
+      </div>
+      <div>
+        <label>Months (Multi Select)</label>
+        <select id="months" multiple onchange="calculate()">
+          <option>January</option><option>February</option><option>March</option><option>April</option>
+          <option>May</option><option>June</option><option>July</option><option>August</option>
+          <option>September</option><option>October</option><option>November</option><option>December</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><label>Monthly Rental</label><input id="rental" type="number" oninput="calculate()"></div>
+      <div><label>Gross Amount</label><input id="grossAmt" readonly></div>
+      <div><label>Discount</label><input id="discount" type="number" value="0" oninput="calculate()"></div>
+    </div>
+
+    <div class="row">
+      <div><label>Tax %</label><input id="taxPercentage" type="number" value="0" oninput="calculate()"></div>
+      <div><label>Tax Amount</label><input id="taxAmt" readonly></div>
+      <div><label>Net Amount</label><input id="netAmt" readonly></div>
+    </div>
+
+    <div class="row">
+      <div><label>Now Paid</label><input id="nowPaid" type="number" oninput="calculate()"></div>
+      <div><label>Pending</label><input id="pending" readonly style="color:red; font-weight:bold;"></div>
+      <div><label>Rental Set (Optional)</label><input id="rentalSet"></div>
+    </div>
+
+    <div class="row">
+      <div style="grid-column:span 2"><label>Remarks</label><textarea id="remarks"></textarea></div>
+      <div><label>Upload New Image</label><input type="file" id="imgUpload" accept="image/*"></div>
+    </div>
+    <br>
+<button id="saveBtn" onclick="saveAndPrint()">💾 Save & Print Bill</button>  </div>
+
+
+
+</div>
+
+<div id="bill"></div>
+
+<script>
+// --- CONFIGURATION ---
+const SEARCH_URL = "https://script.google.com/macros/s/AKfycbwnY99_hETH8F_nYcS1jbW_5PfuGXWHVA9ZIf-xKoJ3BjEcSZ455K38ey7wDh6qlIsSvw/exec"; 
+const PAYMENT_URL = "https://script.google.com/macros/s/AKfycbyogWMiTNNixoMp7E0NEA7-z_y0Syxxrp_NrG8hWhI7bpPRNokcNAKYo1EyZxxx6qnldA/exec";
+
+let activeTenant = null;
+let uploadedBase64 = "";
+
+// Set default date
+document.getElementById('paymentDate').valueAsDate = new Date();
+
+/**
+ * MASTER IMAGE FORMATTER
+ * Handles array strings, raw base64, and empty values
+ */
+function formatImg(src) {
+  if (!src) return "https://via.placeholder.com/120x140?text=No+Photo";
+  
+  // Clean JSON array if present
+  if (typeof src === 'string' && src.startsWith('[')) {
+    try {
+      const arr = JSON.parse(src);
+      src = arr[0];
+    } catch(e) {}
+  }
+  
+  if (src.startsWith("data:image")) return src;
+  if (src.length > 100) return "data:image/jpeg;base64," + src;
+  return src;
+}
+
+// Convert uploaded file to Base64
+document.getElementById("imgUpload").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = () => uploadedBase64 = reader.result;
+    reader.readAsDataURL(file);
+  }
+});
+
+/**
+ * SEARCH TENANT
+ * Uses SEARCH_URL to get master tenant details
+ */
+async function searchTenant() {
+  const key = document.getElementById("searchKey").value;
+  const resDiv = document.getElementById("tenantResult");
+  if(!key) return alert("Please enter Shop No, Name or Mobile");
+
+  resDiv.innerHTML = "Searching..Please Wait...";
+  
+  try {
+    const res = await fetch(SEARCH_URL, { method: "POST", body: JSON.stringify({ action: "get" }) });
+    const data = await res.json();
+    
+    resDiv.innerHTML = "";
+    // Filter columns: 3 (Shop), 5 (Name), 7 (Mobile)
+    const filtered = data.filter(r => 
+      String(r[3]).toLowerCase().includes(key.toLowerCase()) || 
+      String(r[5]).toLowerCase().includes(key.toLowerCase()) ||
+      String(r[7]).includes(key)
+    );
+
+    if(filtered.length === 0) {
+      resDiv.innerHTML = "❌ No tenant found.";
+      return;
+    }
+
+    filtered.forEach(r => {
+      const imgUrl = formatImg(r[15]); // Column 15 is Image
+      const box = document.createElement("div");
+      box.className = "tenant-box";
+      box.innerHTML = `
+        <img src="${imgUrl}">
+        <span>${r[5]} (Shop ${r[3]})</span>
+        <button style="padding:5px;font-size:11px;background:#2e7d32;" onclick='selectTenant(${JSON.stringify(r)})'>Select</button>
+      `;
+      resDiv.appendChild(box);
+    });
+  } catch(e) { 
+    resDiv.innerHTML = "Error connecting to server."; 
+  }
+}
+
+function selectTenant(r) {
+  activeTenant = r;
+  document.getElementById("rental").value = r[12]; // Column 12 is Rent
+  document.getElementById("selectedInfo").innerText = `SELECTED: ${r[5]} | Shop: ${r[3]}`;
+  document.getElementById("tenantResult").innerHTML = "";
+  calculate();
+}
+
+function calculate() {
+  const count = [...document.getElementById("months").selectedOptions].length;
+  const rent = +document.getElementById("rental").value || 0;
+  const gross = count * rent;
+  document.getElementById("grossAmt").value = gross;
+
+  const disc = +document.getElementById("discount").value || 0;
+  const tax = ((gross - disc) * (+document.getElementById("taxPercentage").value || 0)) / 100;
+  document.getElementById("taxAmt").value = tax.toFixed(2);
+
+  const net = gross - disc + tax;
+  document.getElementById("netAmt").value = net.toFixed(2);
+  const paid = +document.getElementById("nowPaid").value || 0;
+  document.getElementById("pending").value = (net - paid).toFixed(2);
+}
+
+/**
+ * SAVE AND PRINT
+ * Uses PAYMENT_URL to record transaction
+ */
+async function saveAndPrint() {
+
+  if(!activeTenant) {
+    alert("Please select a tenant first!");
+    return;
+  }
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true;
+  btn.innerText = "⏳ Processing... Please Wait";
+  btn.style.background = "#999";
+
+  const data = {
+    action: "savePayment",
+    tenantName: activeTenant[5],
+    shopNo: activeTenant[3],
+    mobile: activeTenant[7],
+    paymentDate: document.getElementById("paymentDate").value,
+    transactionId: document.getElementById("transactionId").value,
+    months: [...document.getElementById("months").selectedOptions].map(o=>o.value).join(", "),
+    monthsCount: [...document.getElementById("months").selectedOptions].length,
+    rental: document.getElementById("rental").value,
+    grossAmt: document.getElementById("grossAmt").value,
+    discount: document.getElementById("discount").value,
+    taxPercentage: document.getElementById("taxPercentage").value,
+    taxAmt: document.getElementById("taxAmt").value,
+    netAmt: document.getElementById("netAmt").value,
+    nowPaid: document.getElementById("nowPaid").value,
+    pending: document.getElementById("pending").value,
+    rentalSet: document.getElementById("rentalSet").value,
+    remarks: document.getElementById("remarks").value,
+    imageBase64: uploadedBase64 || formatImg(activeTenant[15])
+  };
+
+  try {
+    const res = await fetch(PAYMENT_URL, {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    alert("✅ Saved Successfully! Bill No: " + result.billNo);
+
+    generateBillPrint(data, result.billNo);
+    printBill();
+
+  } catch (e) {
+    alert("❌ Error saving payment.");
+  }
+
+  // Restore Button
+  btn.disabled = false;
+  btn.innerText = "💾 Save & Print Bill";
+  btn.style.background = "#c2185b";
+}
+  
+
+function generateBillPrint(d, billNo) {
+  const billDiv = document.getElementById("bill");
+  billDiv.innerHTML = `
+<div class="print-header">
+  <table width="80%" style="border-collapse:collapse;">
+    <tr>
+  <td width="15%" align="left">
+    
+    <img src="./sa.png" style="width:100%; height:auto; display:block;" loading="eager">
+  </td>
+
+      <td width="70%" align="center">
+        <div style="font-size:13px;">உ</div>
+        <div style="font-size:12px; font-weight:bold; color:#c2185b;">
+          ஸ்ரீ ராஜராஜேஸ்வரி அம்பாள் துணை
+        </div>
+
+        <div style="margin-top:5px; font-size:13px; font-weight:bold; color:green;">
+          கோவில்பட்டி ஆயிர வைசிய காசுக்காரச் செட்டிப்பிள்ளைகள் சங்கம்
+        </div>
+
+        <div style="font-size:12px;font-weight:bold;color:#c2185b;">
+          23, வடக்கு ரத வீதி சிவன் கோயில் தெரு, கோவில்பட்டி - 628 501
+        </div>
+
+        <div style="margin-top:6px; font-size:16px; font-weight:bold; color:blue;">
+          ${d.transactionId || "-"}
+        </div>
+      </td>
+
+<td width="15%" align="right">
+ 
+      <img src="./2.jpg" style="width:100%; height:auto; display:block;" loading="eager">
+
+</td>
+    </tr>
+  </table>
+
+  <hr style=" width:99%;margin-top:10px; border:1px solid #000;">
+ </div>
+  
+
+
+    <table width="80%" style="margin-top:15px; border-collapse:collapse;">
+      <tr>
+        <td width="40%" rowspan="2" align="center">
+          <img src="${d.imageBase64}" class="customer-img">
+        </td>
+        <td width="70%" style="text-align:left; padding-left:15px; color:#c2185b;">
+          <h3 style="margin:5px 0;"><b>வாடகைதாரர் :</b> ${d.tenantName}</h3>
+          <p style="margin:5px 0;"><b>மொபைல் :</b> ${d.mobile}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="text-align:left; padding-left:15px; color:#c2185b;">
+          <h3 style="margin:5px 0;"><b>கடை எண் :</b> ${d.shopNo} &nbsp;&nbsp; <b>மாத வாடகை :</b> ₹${d.rental}</h3>
+        </td>
+      </tr>
+    </table>
+
+<h3 style="margin-top:20px; text-align:center; color:#c2185b;">கட்டண விவரங்கள்</h3> 
+  <table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; text-align:center;">
+      <tr>
+  <th style="background:#0d6efd; color:white;">Bill No</th>
+  <th style="background:#0d6efd; color:white;">Date</th>
+  <th style="background:#0d6efd; color:white;">Month of Pay</th>
+  <th style="background:#0d6efd; color:white;">Rental</th>
+  <th style="background:#0d6efd; color:white;">Tax</th>
+  <th style="background:#0d6efd; color:white;">Now Paying</th>
+  <th style="background:#0d6efd; color:white;">Pending</th>
+</tr>
+      <tr>
+        <td style="color:red;">${billNo}</td>
+        <td style="color:red;">${d.paymentDate}</td>
+        <td style="font-size:10px; color:red;">${d.months}</td>
+       
+        <td style="font-size:10px; color:red;">₹${d.rental}</td>
+        <td style="color:red;">${d.taxPercentage}%</td>
+        <td style="color:red;">₹${d.nowPaid}</td>
+        <td style="color:red;">₹${d.pending}</td>
+      </tr>
+    </table>
+
+    <p style="margin-top:10px; color:#c2185b;"><b>கூடுதல் விவரங்கள் :</b> ${d.remarks || "-"}</p>
+
+  
+  
+<div style="width:100%; margin-top:10px; font-size:11px; line-height:1.4;">
+
+  <div style="width:100%; margin:15px auto;">
+
+  <div style="width:100%; margin:20px auto;">
+
+  <h4 style="margin-bottom:10px; color:#c2185b; text-align:center;">
+    வாடகை நிபந்தனைகள்
+  </h4>
+
+  <div style="font-size:12px; line-height:1.6; text-align:justify;">
+
+    <p style="margin:5px 0;">
+1. மாத வாடகை பேசி ஒப்புக்கொண்டு நிர்வாகம் விதிக்கும் வாடகை மற்றும் அட்வான்ஸ் செலுத்தி ஒப்பந்தம் (Agreement ) போட்டு கொள்ளுதல் வேண்டும். மாத வாடகையை மறுமாதம் 5ம் தேதிக்குள் செலுத்த வேண்டும். தவறினால் வட்டியுடன் சேர்த்து வசூலிக்கப்படும்.   </p>
+
+    <p style="margin:5px 0;">
+      2. எக்காரணத்தை முன்னிட்டும் உள்வாடகைக்கோ வேறு நபருக்கோ மாற்றிக் கொள்ள வாடகைதாரருக்கு உரிமை கிடையாது. கட்டிடம் தேவையில்லையெனில் வாடகை பாக்கிகள் சகிதம் எங்கள் வசம் ஒப்புவிக்க வேண்டும். வாடகைதாரர்கள் ரிப்பேர் மற்றும் மாற்றங்கள்  செய்து கொள்ள உரிமை கிடையாது.  </p>
+
+    <p style="margin:5px 0;">
+      3. எலக்ட்ரிக் சார்ஜ்களை மாதந்தோறும் வாடகைதாரர்கள் செலுத்திக் கொள்ள வேண்டும்.
+    </p>
+
+    <p style="margin:5px 0;">
+      4. கட்டிடம் காலிசெய்யும் போது வாடகைப் பாக்கிகள் பூராவும் செலுத்திவிட்டு 
+      அட்வான்ஸ் தொகையை வாபஸ் பெற்றுக்கொள்ள வேண்டும்.
+    </p>
+
+    <p style="margin:5px 0;">
+      5. இதன்படி நடந்து வருவேனாகவும்.
+    </p>
+
+    <p style="margin:5px 0;">
+6. அரசால் விதிக்கப்படும் சேவை வரி  (SGST & CGST ) அதற்கான தொகையை வாடகைதாரரே செலுத்த வேண்டும்.
+‎   </p>
+
+    <p style="margin:5px 0;">
+      7. வரி செலுத்தத் தவறினால் அல்லது தாமதமானால் அதனால் ஏற்படும் அபராதம், 
+      வட்டி அல்லது சட்ட நடவடிக்கைகளுக்கான முழுப் பொறுப்பும் வாடகைதாரரையே சாரும்.
+    </p>
+
+  </div>
+  
+
+
+
+<!-- SIGNATURE SECTION -->
+<div style="width:80%; margin-top:45px; display:flex; justify-content:space-between;">
+  
+  <div style="font-weight:bold; color:#c2185b;">
+    வாடகைதாரர் கையொப்பம் _____________
+  </div>
+
+  <div style="font-weight:bold; color:#c2185b;">
+    வசூலித்தவர் கையொப்பம் _____________
+  </div>
+
+</div>
+  `;
+}
+
+function printBill() {
+
+  const billDiv = document.getElementById("bill");
+  billDiv.style.display = "block";
+
+  // Get all images inside bill
+  const images = billDiv.querySelectorAll("img");
+  let loadedCount = 0;
+
+  if (images.length === 0) {
+    triggerPrint();
+    return;
+  }
+
+  images.forEach(img => {
+    if (img.complete) {
+      loadedCount++;
+      if (loadedCount === images.length) triggerPrint();
+    } else {
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === images.length) triggerPrint();
+      };
+      img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === images.length) triggerPrint();
+      };
+    }
+  });
+}
+  function triggerPrint() {
+  setTimeout(() => {
+    window.print();
+    billDiv.style.display = "none";
+
+    // Auto Refresh After Print
+    setTimeout(() => {
+      location.reload();
+    }, 800);
+
+  }, 300);
+}
+// Initialize history on load
+
+
+</script>
+</body>
+</html>

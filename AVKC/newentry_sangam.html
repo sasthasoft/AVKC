@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sangam Member Info</title>
+<style>
+:root {
+  --primary-color: #d63384;
+  --bg-color: #fff;
+  --text-color: #333;
+  --btn-hover: #c12d70;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+body { background: #fce4ec; padding: 10px; position: relative; }
+
+.container { max-width: 500px; margin: auto; background: var(--bg-color); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);}
+h2 { text-align: center; color: var(--primary-color); margin-bottom: 20px;}
+form { display: flex; flex-direction: column; gap: 15px;}
+input, select, textarea, button { padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 100%; font-size: 14px;}
+textarea { resize: none; height: 60px; }
+button { background: var(--primary-color); color: white; cursor: pointer; font-weight: bold; transition: 0.3s; }
+button:hover { background: var(--btn-hover); }
+/* Image preview */
+#preview { display: flex; justify-content: center; margin-bottom: 10px;}
+#preview img { max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #ccc; object-fit: cover; }
+/* Scrollable table container */
+.table-container { width: 100%; overflow-x: auto; margin-top: 25px; border: 1px solid #ccc; border-radius: 10px; padding: 5px; background: #fff; }
+table { width: 100%; min-width: 700px; border-collapse: collapse; }
+th, td { padding: 10px; border: 1px solid #ccc; text-align: center; font-size: 13px; }
+th { background: var(--primary-color); color: white; position: sticky; top: 0; z-index: 1; }
+img.table-img { width: 60px; height: 60px; object-fit: cover; border-radius: 5px; }
+.action-btn { margin: 2px; padding: 5px 8px; cursor: pointer; border: none; border-radius: 5px; font-size: 12px; }
+.edit { background: #6c63ff; color: white; }
+.delete { background: #ff3d00; color: white; }
+/* Loading overlay */
+#loadingOverlay {
+  display: none;
+  position: fixed;
+  top:0; left:0; width:100%; height:100%;
+  background: rgba(0,0,0,0.4);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+}
+/* Message toast */
+#messageToast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-color);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 25px;
+  display: none;
+  z-index: 10000;
+  font-weight: bold;
+}
+/* Mobile adjustments */
+@media(max-width:600px){ table { font-size: 12px; } th, td { padding: 6px; } }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Sangam Member Entry</h2>
+<form id="memberForm">
+<input type="hidden" id="memberId">
+<input type="text" id="name" placeholder="Name" required>
+<input type="number" id="age" placeholder="Age" required>
+<input type="text" id="mobile" placeholder="Mobile Number" required>
+<input type="email" id="email" placeholder="Email" required>
+<select id="gender" required>
+  <option value="">Select Gender</option>
+  <option value="Male">Male</option>
+  <option value="Female">Female</option>
+  <option value="Other">Other</option>
+</select>
+<textarea id="address" placeholder="Address" required></textarea>
+<input type="file" id="image" accept="image/*" required>
+<div id="preview"></div>
+<button type="submit">Save</button>
+</form>
+
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>Name</th><th>Age</th><th>Mobile</th><th>Email</th><th>Gender</th><th>Address</th><th>Photo</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="memberTable"></tbody>
+</table>
+</div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay">Loading, please wait...</div>
+<!-- Message Toast -->
+<div id="messageToast"></div>
+
+<script>
+const webAppUrl = "https://script.google.com/macros/s/AKfycbzfsJ6wIis1uyAZQNiTO1dKkOvFB8__8qWhYqsM55BK32A34lUqrfOuCIax_Usg-SXA2A/exec"; // Replace with your Google Apps Script URL
+const form = document.getElementById("memberForm");
+const memberTable = document.getElementById("memberTable");
+const preview = document.getElementById("preview");
+const loadingOverlay = document.getElementById("loadingOverlay");
+const messageToast = document.getElementById("messageToast");
+let editingId = null;
+
+// Show loading
+function showLoading(show=true){ loadingOverlay.style.display = show ? "flex" : "none"; }
+// Show message
+function showMessage(msg, duration=2000){
+  messageToast.textContent = msg;
+  messageToast.style.display = "block";
+  setTimeout(()=>{ messageToast.style.display="none"; }, duration);
+}
+
+// Show image preview and compress
+document.getElementById("image").addEventListener("change", async e=>{
+  const file = e.target.files[0];
+  if(file){
+    showLoading(true);
+    const compressed = await compressImage(file, 200*1024);
+    preview.innerHTML = `<img src="${compressed}" />`;
+    document.getElementById("image").compressedData = compressed;
+    showLoading(false);
+  } else { preview.innerHTML = ""; }
+});
+
+// Compress image to maxSize in bytes
+function compressImage(file, maxSize){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function(ev){
+      const img = new Image();
+      img.src = ev.target.result;
+      img.onload = function(){
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const ratio = width/height;
+        const maxDim = 800;
+        if(width>maxDim || height>maxDim){
+          if(ratio>1){ width=maxDim; height=maxDim/ratio; } else { height=maxDim; width=maxDim*ratio; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img,0,0,width,height);
+        let quality = 0.9;
+        let dataUrl = canvas.toDataURL("image/jpeg", quality);
+        while(dataUrl.length > maxSize*1.37 && quality>0.1){ quality -= 0.05; dataUrl = canvas.toDataURL("image/jpeg", quality); }
+        resolve(dataUrl);
+      }
+    }
+    reader.onerror = error => reject(error);
+  });
+}
+
+// Load all members
+async function loadMembers(){
+  showLoading(true);
+  try{
+    const res = await fetch(`${webAppUrl}?action=view`);
+    const data = await res.json();
+    memberTable.innerHTML = "";
+    data.forEach(member => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${member.name}</td>
+        <td>${member.age}</td>
+        <td>${member.mobile}</td>
+        <td>${member.email}</td>
+        <td>${member.gender}</td>
+        <td>${member.address}</td>
+        <td><img class="table-img" src="${member.image}" /></td>
+        <td>
+          <button class="action-btn edit" onclick="editMember('${member.id}')">Edit</button>
+          <button class="action-btn delete" onclick="deleteMember('${member.id}')">Delete</button>
+        </td>
+      `;
+      memberTable.appendChild(tr);
+    });
+  } catch(err){ console.error(err); showMessage("Error loading data"); }
+  showLoading(false);
+}
+
+// Submit form
+form.addEventListener("submit", async e=>{
+  e.preventDefault();
+  showLoading(true);
+  try{
+    const name = document.getElementById("name").value;
+    const age = document.getElementById("age").value;
+    const mobile = document.getElementById("mobile").value;
+    const email = document.getElementById("email").value;
+    const gender = document.getElementById("gender").value;
+    const address = document.getElementById("address").value;
+    const fileData = document.getElementById("image").compressedData || "";
+
+    const action = editingId ? "update" : "save";
+    const payload = new URLSearchParams({
+      action: action,
+      id: editingId || "",
+      name, age, mobile, email, gender, address, image: fileData
+    });
+
+    await fetch(webAppUrl, { method: "POST", body: payload });
+    showMessage(editingId ? "Updated successfully" : "Saved successfully");
+    editingId = null;
+    form.reset();
+    preview.innerHTML = "";
+    loadMembers();
+  } catch(err){ console.error(err); showMessage("Error saving data"); }
+  showLoading(false);
+});
+
+// Edit member
+async function editMember(id){
+  showLoading(true);
+  try{
+    const res = await fetch(`${webAppUrl}?action=view`);
+    const data = await res.json();
+    const member = data.find(m=>m.id==id);
+    if(member){
+      editingId = id;
+      document.getElementById("name").value = member.name;
+      document.getElementById("age").value = member.age;
+      document.getElementById("mobile").value = member.mobile;
+      document.getElementById("email").value = member.email;
+      document.getElementById("gender").value = member.gender;
+      document.getElementById("address").value = member.address;
+      preview.innerHTML = `<img src="${member.image}" />`;
+      document.getElementById("image").compressedData = member.image;
+    }
+  } catch(err){ console.error(err); showMessage("Error loading member"); }
+  showLoading(false);
+}
+
+// Delete member
+async function deleteMember(id){
+  if(confirm("Are you sure?")){
+    showLoading(true);
+    try{
+      const payload = new URLSearchParams({ action:"delete", id:id });
+      await fetch(webAppUrl, { method:"POST", body:payload });
+      showMessage("Deleted successfully");
+      loadMembers();
+    } catch(err){ console.error(err); showMessage("Error deleting"); }
+    showLoading(false);
+  }
+}
+
+// Initial load
+loadMembers();
+</script>
+</body>
+</html>
